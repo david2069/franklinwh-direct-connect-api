@@ -1,8 +1,9 @@
 # franklinwh-local
 
 Unofficial Python library and CLI for the **FranklinWH aGate local broker protocol** —
-the JSON `cmdType` frames exchanged over **TCP/9000**. This is the lower-level
-device↔broker channel that the cloud `sendMqtt` REST relay (see
+the JSON `cmdType` frames exchanged over **TCP/9000**, the local interface the official
+FranklinWH app calls **"Direct Connect."** This is the lower-level device↔broker channel
+that the cloud `sendMqtt` REST relay (see
 [`franklinwh-cloud`](https://github.com/david2069/franklinwh-cloud)) is layered on top of.
 
 > **Status: alpha.** The protocol was reverse-engineered from packet captures.
@@ -11,10 +12,29 @@ device↔broker channel that the cloud `sendMqtt` REST relay (see
 
 ## Why this exists
 
-The cloud REST API drops most of the structural telemetry (battery cell voltages,
-relay states, full physics arrays) to speed up the mobile app. That data still
-flows over the local broker channel. `franklinwh-local` speaks that channel
-directly, so you can read deep telemetry and device configuration locally.
+A FranklinWH aGate can be reached three different ways:
+
+- **The FranklinWH Cloud API** — what the official **mobile app** and the **FleetView**
+  installer portal use. Capable, but it routes through FranklinWH's servers and needs an
+  account and an internet connection.
+- **Modbus TCP (SunSpec)** — a standards-based local interface. Good for basic power/energy
+  reads and a few setpoints, but only a narrow slice of what the device actually knows.
+- **The aGate's own local broker protocol** — the proprietary `sendMqtt` `cmdType` channel
+  on **TCP/9000** that the app itself speaks under the hood. The official FranklinWH app
+  calls this interface **"Direct Connect."** This is what `franklinwh-local` implements.
+
+The project exists to demonstrate that third path: a fully **local, no-cloud, no-account**
+way to **query, control, and administer** an aGate directly on your LAN — no FranklinWH
+servers, no Modbus gateway required. Because it's the device's *native* channel, it surfaces
+the deep structural telemetry the cloud strips out to keep the app fast (per-cell battery
+voltages, relay/contactor states, full physics arrays), plus configuration and control
+(operating mode, off-grid, reboot) — things neither a plain Modbus read nor the cloud expose
+together in one place.
+
+> **On the name "Direct Connect":** the official FranklinWH app uses this label for the local
+> interface; this project adopts the term **purely to identify the same channel**. It implies
+> **no affiliation with, endorsement by, or support from FranklinWH** — this is unofficial,
+> reverse-engineered software, provided as-is.
 
 **Docs:** [USAGE.md](docs/USAGE.md) (full how-to) · [PROTOCOL.md](docs/PROTOCOL.md) (wire format + command catalog) · [API.md](docs/API.md) (API reference)
 
