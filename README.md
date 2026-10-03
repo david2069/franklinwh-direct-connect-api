@@ -9,6 +9,14 @@ that the cloud `sendMqtt` REST relay (see
 > **Status: alpha.** The protocol was reverse-engineered from packet captures.
 > Frame parsing/encoding and the offline tooling are well tested; live transport
 > against real hardware should be validated on your own LAN.
+>
+> This is still work in progress - as some functions have not been fully tested and/or exposed yet.
+>
+> For example (there may be others):
+> - set operating mode specific reserved state of change
+> - battery dispatch to force charge and discharge
+> - set battery or grid inverter power (in watts) for battery dispatch operations
+> - determining battery capabilities for the AC inverter (in watts) and battery capacity (in watt hours)
 
 ## Why this exists
 
@@ -37,14 +45,6 @@ together in one place.
 > reverse-engineered software, provided as-is.
 
 **Docs:** [USAGE.md](docs/USAGE.md) (full how-to) · [PROTOCOL.md](docs/PROTOCOL.md) (wire format + command catalog) · [API.md](docs/API.md) (API reference)
-
-A rendered docs site (MkDocs Material) is published from `docs/` via GitHub
-Actions. Build it locally with:
-
-```bash
-pip install -e ".[docs]"
-mkdocs serve        # http://127.0.0.1:8000
-```
 
 ## Setup
 
