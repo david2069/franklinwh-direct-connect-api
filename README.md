@@ -43,7 +43,7 @@ franklinwh-local --version     # 4. verify
 ```
 
 Add `".[test]"` instead of `"."` in step 3 if you want to run the pytest suite.
-From PyPI (no checkout needed) the install is `pip install franklinwh-local-api`.
+From PyPI (no checkout needed) the install is `pip install franklinwh-direct-connect-api`.
 
 ### How to run it
 
@@ -64,7 +64,7 @@ python -m franklinwh_local catalog          # module form; works anywhere the pa
 ```
 
 The names are easy to mix up: the PyPI distribution is
-**`franklinwh-local-api`**, the import package is **`franklinwh_local`**
+**`franklinwh-direct-connect-api`**, the import package is **`franklinwh_local`**
 (underscore), and the CLI command is **`franklinwh-local`** (hyphen).
 
 Everything below assumes the venv is activated. Offline commands

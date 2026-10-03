@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `franklinwh-local-api` are documented here.
+All notable changes to `franklinwh-direct-connect-api` are documented here.
 Format loosely follows [Keep a Changelog](https://keepachangelog.com/); this project
 uses [Semantic Versioning](https://semver.org/).
 
@@ -92,7 +92,7 @@ Several descriptions were wrong and are corrected; if you rely on them, re-read:
 
 
 ### Packaging
-- Distribution renamed to **`franklinwh-local-api`** for PyPI (import path stays
+- Distribution renamed to **`franklinwh-direct-connect-api`** for PyPI (import path stays
   `franklinwh_local`; CLI command stays `franklinwh-local`).
 - Rounded out project metadata/URLs; added a build-and-validate release workflow
   (publishing is held while the repository is private).

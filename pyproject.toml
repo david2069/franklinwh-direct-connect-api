@@ -2,10 +2,10 @@
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
-# Distribution name is `franklinwh-local-api` (PyPI); the import package stays
+# Distribution name is `franklinwh-direct-connect-api` (PyPI); the import package stays
 # `franklinwh_local` and the CLI command stays `franklinwh-local`.
 [project]
-name = "franklinwh-local-api"
+name = "franklinwh-direct-connect-api"
 version = "0.3.0"
 description = "Unofficial Python library and CLI for the FranklinWH aGate local broker protocol (TCP/9000 sendMqtt cmdType frames)"
 readme = {file = "README.md", content-type = "text/markdown"}
