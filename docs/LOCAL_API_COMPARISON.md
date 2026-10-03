@@ -9,8 +9,8 @@ differs. They are **not** forks of each other.
 
 | | **`franklinwh-local`** (this repo) | **`voidstarr/franklinwh_local`** |
 | --- | --- | --- |
-| Repo | `david2069/franklinwh-local` | `github.com/voidstarr/franklinwh_local` |
-| PyPI | `franklinwh-local-api` | — (source only) |
+| Repo | `david2069/franklinwh-direct-connect-api` | `github.com/voidstarr/franklinwh_local` |
+| PyPI | `franklinwh-direct-connect-api` | — (source only) |
 | License | MIT | MIT |
 | Focus | full data layer + control + tooling + emulator | transport + command table |
 | Client methods | 52 | ~10 |

@@ -32,7 +32,7 @@ cloud `sendMqtt` REST relay (see
       app and installer configuration
 
     **Do NOT contact FranklinWH support** about this software — raise issues on GitHub:
-    <https://github.com/david2069/franklinwh-local/issues>. **MIT Licence.**
+    <https://github.com/david2069/franklinwh-direct-connect-api/issues>. **MIT Licence.**
 
 ## Why this exists
 

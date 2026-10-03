@@ -51,7 +51,7 @@ mkdocs serve        # http://127.0.0.1:8000
 Requires **Python 3.10+**. No runtime dependencies (standard library only).
 
 ```bash
-git clone https://github.com/david2069/franklinwh-local
+git clone https://github.com/david2069/franklinwh-direct-connect-api
 cd franklinwh-local
 
 python3 -m venv .venv          # 1. create a virtualenv
@@ -71,7 +71,7 @@ From PyPI (no checkout needed) the install is `pip install franklinwh-direct-con
 `PATH` — it is *not* a `.py` file in this repo, so these do **not** work:
 
 ```bash
-python franklinwh-local ...        # can't open file '.../franklinwh-local'
+python franklinwh-local ...        # can't open file '.../franklinwh-direct-connect-api'
 python franklinwh_local.py ...     # no such file
 ```
 
@@ -79,7 +79,7 @@ Run it one of these three ways:
 
 ```bash
 franklinwh-local catalog                    # venv activated (recommended)
-.venv/bin/franklinwh-local catalog          # venv not activated — call it by path
+.venv/bin/franklinwh-direct-connect-api catalog          # venv not activated — call it by path
 python -m franklinwh_local catalog          # module form; works anywhere the package imports
 ```
 
@@ -95,7 +95,7 @@ Everything below assumes the venv is activated. Offline commands
 
 | Symptom | Cause / fix |
 | --- | --- |
-| `can't open file '.../franklinwh-local'` | You ran `python franklinwh-local`. Drop the `python` — it's a command, not a script. |
+| `can't open file '.../franklinwh-direct-connect-api'` | You ran `python franklinwh-local`. Drop the `python` — it's a command, not a script. |
 | `command not found: franklinwh-local` | The venv isn't activated (`source .venv/bin/activate`), or `pip install -e .` hasn't been run in it. |
 | `No module named franklinwh_local` | You're on a different interpreter than the one you installed into. Check with `which python` and `pip -V` — both should point inside `.venv`. |
 | `error: externally-managed-environment` | You ran `pip install` outside a venv on a Homebrew/system Python. Create and activate the venv first. |

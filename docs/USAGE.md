@@ -2,7 +2,7 @@
 
 A practical, end-to-end guide. For the wire format and command catalog see
 [PROTOCOL.md](PROTOCOL.md); for a quick overview see the top-level
-[README](https://github.com/david2069/franklinwh-local/blob/main/README.md).
+[README](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/README.md).
 
 - [Install](#install)
 - [Connect to the gateway (Direct Connection)](#connect-to-the-gateway-direct-connection)
@@ -21,7 +21,7 @@ A practical, end-to-end guide. For the wire format and command catalog see
 Requires Python 3.10+. No runtime dependencies — standard library only.
 
 ```bash
-git clone https://github.com/david2069/franklinwh-local
+git clone https://github.com/david2069/franklinwh-direct-connect-api
 cd franklinwh-local
 
 python3 -m venv .venv          # create a virtualenv
@@ -34,10 +34,10 @@ franklinwh-local --version     # verify: prints "franklinwh-local 0.1.0"
 `franklinwh-local` is a **console script** installed onto your `PATH` — not a
 `.py` file in the repo. `python franklinwh-local ...` fails with
 `can't open file`. If the command isn't found, either activate the venv, call it
-by path (`.venv/bin/franklinwh-local`), or use the module form
+by path (`.venv/bin/franklinwh-direct-connect-api`), or use the module form
 `python -m franklinwh_local`.
 
-The three similar names: PyPI distribution `franklinwh-local-api`, import package
+The three similar names: PyPI distribution `franklinwh-direct-connect-api`, import package
 `franklinwh_local`, CLI command `franklinwh-local`.
 
 ---
@@ -270,7 +270,7 @@ logins and normal frames decode transparently.
 ## Extending the command catalog
 
 When you observe a new `cmdType`, add it to
-[`franklinwh_local/catalog.py`](https://github.com/david2069/franklinwh-local/blob/main/franklinwh_local/catalog.py):
+[`franklinwh_local/catalog.py`](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/franklinwh_local/catalog.py):
 
 ```python
 class Cmd(IntEnum):
@@ -282,7 +282,7 @@ CATALOG[1313] = CmdInfo(1313, 1314, "my_new_read", "what it returns")
 
 Then it's immediately usable via `c.call(1313)` and shows up in
 `franklinwh-local catalog`. To expose it as a named method, add a one-liner to
-[`client.py`](https://github.com/david2069/franklinwh-local/blob/main/franklinwh_local/client.py):
+[`client.py`](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/franklinwh_local/client.py):
 
 ```python
 def my_new_read(self):
@@ -536,7 +536,7 @@ probing, and add confirmed finds to `catalog.py` so the next sweep skips them.
 
 | Symptom | Likely cause / fix |
 |---|---|
-| `python: can't open file '.../franklinwh-local'` | Drop the `python` — it's a console script, not a `.py` file. Just `franklinwh-local ...`. |
+| `python: can't open file '.../franklinwh-direct-connect-api'` | Drop the `python` — it's a console script, not a `.py` file. Just `franklinwh-local ...`. |
 | `command not found: franklinwh-local` | Venv not activated (`source .venv/bin/activate`) or `pip install -e .` not run in it. Or use `python -m franklinwh_local ...`. |
 | `No module named franklinwh_local` | Wrong interpreter — `which python` and `pip -V` should both point inside `.venv`. |
 | `scan gateway` finds nothing | Not joined to the `AP_<serial>` hotspot, or the gateway isn't the subnet `.1` — try `scan <subnet>/24`. |
