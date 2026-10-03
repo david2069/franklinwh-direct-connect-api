@@ -1,4 +1,4 @@
-site_name: FranklinWH Local
+site_name: FranklinWH Direct Connect
 site_description: Unofficial Python library & CLI for the FranklinWH aGate local broker protocol (TCP/9000)
 site_url: https://david2069.github.io/franklinwh-direct-connect-api
 repo_url: https://github.com/david2069/franklinwh-direct-connect-api
