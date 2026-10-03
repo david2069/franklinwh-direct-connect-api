@@ -1,9 +1,9 @@
-# FranklinWH Local
+# FranklinWH Direct Connect
 
 Unofficial Python library and CLI for the FranklinWH aGate **local broker
-protocol** — the JSON `cmdType` frames exchanged over **TCP/9000** on the
-gateway's WiFi hotspot. This is the lower-level device↔broker channel that the
-cloud `sendMqtt` REST relay (see
+protocol** — the JSON `cmdType` frames exchanged over **TCP/9000**, the local
+interface the official FranklinWH app calls **"Direct Connect."** This is the
+lower-level device↔broker channel that the cloud `sendMqtt` REST relay (see
 [`franklinwh-cloud`](https://github.com/david2069/franklinwh-cloud)) sits on top of.
 
 !!! warning "Status: alpha"
