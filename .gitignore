@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+site/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+venv/
+.venv/
+env/
+
+# Local secrets / device config
+*.ini
+.env
+
+# Live-hardware scratch probes (require a reachable aGate; never in CI)
+probe_gaps.py
+
+# Editor
+.vscode/
+.idea/
+.DS_Store

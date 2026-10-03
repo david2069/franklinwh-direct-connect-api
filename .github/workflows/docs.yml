@@ -1,0 +1,49 @@
+name: Deploy Docs
+
+on:
+  # push trigger muted 2026-09-20 (Actions budget $0 until 2026-10-01).
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: |
+          pip install -e .
+          pip install mkdocs-material "mkdocstrings[python]"
+
+      - name: Build docs
+        run: mkdocs build --strict
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+  deploy:
+    needs: build
+    # Pages isn't enabled for this private repo, so only deploy on a manual
+    # run (after enabling Pages). Pushes just build-check the docs above.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# Distribution name is `franklinwh-local-api` (PyPI); the import package stays
+# `franklinwh_local` and the CLI command stays `franklinwh-local`.
+[project]
+name = "franklinwh-local-api"
+version = "0.3.0"
+description = "Unofficial Python library and CLI for the FranklinWH aGate local broker protocol (TCP/9000 sendMqtt cmdType frames)"
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [
+    {name = "david2069", email = "david.hona@gmail.com"},
+]
+keywords = [
+    "franklinwh", "agate", "apower", "battery", "solar",
+    "energy-storage", "home-automation", "mqtt", "local",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Home Automation",
+    "Topic :: System :: Networking",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+]
+docs = [
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
+
+[project.urls]
+Homepage = "https://github.com/david2069/franklinwh-local"
+Repository = "https://github.com/david2069/franklinwh-local"
+Documentation = "https://github.com/david2069/franklinwh-local/blob/main/docs/USAGE.md"
+Changelog = "https://github.com/david2069/franklinwh-local/blob/main/CHANGELOG.md"
+Issues = "https://github.com/david2069/franklinwh-local/issues"
+"Companion (Cloud API)" = "https://github.com/david2069/franklinwh-cloud"
+
+[project.scripts]
+franklinwh-local = "franklinwh_local.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["franklinwh_local*"]
+
+[tool.setuptools.package-data]
+franklinwh_local = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "live: requires a reachable aGate on the LAN (deselect with '-m \"not live\"')",
+]
