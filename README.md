@@ -1,4 +1,4 @@
-# franklinwh-local
+# franklinwh-direct-connect-api
 
 Unofficial Python library and CLI for the **FranklinWH aGate local broker protocol** —
 the JSON `cmdType` frames exchanged over **TCP/9000**, the local interface the official
