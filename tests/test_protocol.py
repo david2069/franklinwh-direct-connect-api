@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import pytest
 
-from franklinwh_local import protocol
-from franklinwh_local.protocol import (
+from franklinwh_direct_connect_api import protocol
+from franklinwh_direct_connect_api.protocol import (
     crc32_hex,
     dataarea_str,
     decode_frame,
@@ -73,7 +73,7 @@ def test_login_frame_uses_login_seed():
 
 # -- run_status enum (aligns with the cloud API's RUN_STATUS) -----------------
 def test_run_status_desc_known_and_unknown():
-    from franklinwh_local import RUN_STATUS, run_status_desc
+    from franklinwh_direct_connect_api import RUN_STATUS, run_status_desc
 
     assert run_status_desc(0) == "Standby"
     assert run_status_desc(1) == "Charging"
@@ -87,7 +87,7 @@ def test_run_status_desc_known_and_unknown():
 
 # -- newly cataloged read codes + confirmed control writes (2026-06-19) -------
 def test_new_read_codes_cataloged():
-    from franklinwh_local import catalog
+    from franklinwh_direct_connect_api import catalog
     assert catalog.response_for(1411) == 1412   # smart-circuit meter
     assert catalog.response_for(1901) == 1902    # generator + charge schedule
     assert "smart_circuit_meter" in catalog.describe(1411)
@@ -96,7 +96,7 @@ def test_new_read_codes_cataloged():
 
 def test_swept_cmdtypes_cataloged():
     # cmdTypes confirmed by the 2026-07 live sweep (corrected frame matching).
-    from franklinwh_local import catalog
+    from franklinwh_direct_connect_api import catalog
     for cmd, needle in [(1205, "der_comms"), (1401, "smart_circuit_schedule"),
                         (1721, "device_control")]:
         assert catalog.response_for(cmd) == cmd + 1
@@ -110,14 +110,14 @@ def test_swept_cmdtypes_cataloged():
 
 def test_response_for_unknown_odd_uses_convention():
     # Un-catalogued ODD requests fall back to response = request + 1 so probing works.
-    from franklinwh_local import catalog
+    from franklinwh_direct_connect_api import catalog
     assert 4137 not in catalog.CATALOG
     assert catalog.response_for(4137) == 4138   # odd -> +1
     assert catalog.response_for(4138) is None    # even (non-request) -> None
 
 
 def test_writes_reference():
-    from franklinwh_local import WRITES, catalog
+    from franklinwh_direct_connect_api import WRITES, catalog
     assert WRITES["set_mode"] == {"cmd": 1727, "opt": 3, "fields": ["current_id"],
                                   "note": WRITES["set_mode"]["note"]}
     # every write targets a cataloged request cmdType
@@ -128,7 +128,7 @@ def test_writes_reference():
 
 def test_operating_modes_enum_mapping():
     """modbus oldIndex and cloud workMode swap TOU & Backup; only Self matches."""
-    from franklinwh_local import OPERATING_MODES as M
+    from franklinwh_direct_connect_api import OPERATING_MODES as M
     assert M["Emergency Backup"] == {"modbus": 1, "cloud": 3}
     assert M["Self-Consumption"] == {"modbus": 2, "cloud": 2}
     assert M["Time-of-Use"] == {"modbus": 3, "cloud": 1}
@@ -138,7 +138,7 @@ def test_operating_modes_enum_mapping():
 
 def test_mode_label_overrides_site_tariff_name():
     """TOU's site-specific tariff name -> canonical 'Time-of-Use' (app/FWHAI)."""
-    from franklinwh_local import mode_label
+    from franklinwh_direct_connect_api import mode_label
     assert mode_label({"scheduling_type": 1, "name": "Ausgrid EA11 TOU"}) == "Time-of-Use"
     assert mode_label({"scheduling_type": 2, "name": "Self-Consumption"}) == "Self-Consumption"
     assert mode_label({"scheduling_type": 3, "name": "Emergency Backup"}) == "Emergency Backup"

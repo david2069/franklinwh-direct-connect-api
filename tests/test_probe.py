@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from franklinwh_local import catalog, probe
-from franklinwh_local.client import LocalClient
-from franklinwh_local.emulator import Emulator
+from franklinwh_direct_connect_api import catalog, probe
+from franklinwh_direct_connect_api.client import LocalClient
+from franklinwh_direct_connect_api.emulator import Emulator
 
 CELL_CODE = 1507          # an unused gap code, stands in for the real BMS read
 PACK_SN = "FAKEAPOWERP6KMFY7ALA"
@@ -140,7 +140,7 @@ def test_probe_is_read_only(client):
 
 # -- CLI ---------------------------------------------------------------------
 def test_cli_probe_reports_the_find(emulator, capsys):
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
 
     rc = main(["-i", "127.0.0.1", "-p", str(emulator.port), "-t", "1",
                "--retries", "0", "probe",
@@ -155,7 +155,7 @@ def test_cli_probe_reports_the_find(emulator, capsys):
 def test_cli_probe_json(emulator, capsys):
     import json
 
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
 
     rc = main(["-i", "127.0.0.1", "-p", str(emulator.port), "-t", "1",
                "--retries", "0", "probe", "--codes", str(CELL_CODE),
@@ -168,7 +168,7 @@ def test_cli_probe_json(emulator, capsys):
 
 
 def test_cli_probe_requires_a_host(capsys):
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
 
     assert main(["probe", "--codes", "1507"]) == 2
     assert "required" in capsys.readouterr().err
@@ -205,7 +205,7 @@ def test_all_shapes_tries_every_payload_and_keeps_the_richest(client):
 
 
 def test_cli_rejects_a_write_payload(emulator, capsys):
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
 
     rc = main(["-i", "127.0.0.1", "-p", str(emulator.port), "-t", "1", "--retries", "0",
                "probe", "--codes", "1507", "--no-serials",
@@ -215,7 +215,7 @@ def test_cli_rejects_a_write_payload(emulator, capsys):
 
 
 def test_cli_rejects_malformed_payload_json(emulator, capsys):
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
 
     rc = main(["-i", "127.0.0.1", "-p", str(emulator.port), "-t", "1", "--retries", "0",
                "probe", "--codes", "1507", "--no-serials", "--payload", "not json"])
@@ -224,7 +224,7 @@ def test_cli_rejects_malformed_payload_json(emulator, capsys):
 
 
 def test_cli_custom_payload_finds_the_gated_read(emulator, capsys):
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
 
     rc = main(["-i", "127.0.0.1", "-p", str(emulator.port), "-t", "1", "--retries", "0",
                "probe", "--codes", str(CELL_CODE), "--serial", PACK_SN, "--no-serials",

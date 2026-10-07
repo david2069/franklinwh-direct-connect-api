@@ -6,21 +6,21 @@ How the local **sendMqtt** protocol (TCP 9000, integer `cmdType`) maps to the Fr
 coarser and adds account/portal features. Some settings are **cloud-owned** and only
 *readable* locally.
 
-> Generated from `franklinwh_local.catalog.CATALOG` + live probing (last: 2026-09-11,
+> Generated from `franklinwh_direct_connect_api.catalog.CATALOG` + live probing (last: 2026-09-11,
 > aGate X-01 AU, FW `IBG_VER V12R02B30D06_260304`). Cloud names are from `franklinwh-cloud`
 > (`MqttCmd` in `models.py`, `docs/MQTT_CMD_CATALOG.md`, `docs/API_REFERENCE.md`); REST
 > paths are its local wrapper (`localhost:8099`, e.g. `/api/gateways/{id}/...`).
 >
 > **Start at [§0 Full reconciliation](#0-full-reconciliation)** — both directions with a
 > verdict per row. Sections 1–3 below are the older per-direction lists, kept for detail.
-> The machine-readable form is `CmdInfo.cloud_api` (`franklinwh-local catalog --json`).
+> The machine-readable form is `CmdInfo.cloud_api` (`franklinwh-direct-connect catalog --json`).
 
 ---
 
 ## 0. Full reconciliation
 
 Both directions, with an explicit verdict per row. Generated against
-`franklinwh_local.catalog` (70 codes, 53 mapped) and `franklinwh-cloud`
+`franklinwh_direct_connect_api.catalog` (70 codes, 53 mapped) and `franklinwh-cloud`
 (`MqttCmd` in `models.py`, `docs/MQTT_CMD_CATALOG.md`, `docs/API_REFERENCE.md`).
 
 **The two numbering spaces are disjoint and mutually unreachable.** Cloud `211` is not

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from franklinwh_local import catalog
-from franklinwh_local.cli import build_parser, live_commands, main
+from franklinwh_direct_connect_api import catalog
+from franklinwh_direct_connect_api.cli import build_parser, live_commands, main
 
 
 def _subcommands() -> set[str]:
@@ -123,7 +123,7 @@ def test_energy_history_takes_a_date():
 
 def test_energy_history_date_defaults_to_today():
     import datetime
-    from franklinwh_local.cli import build_parser as bp
+    from franklinwh_direct_connect_api.cli import build_parser as bp
     args = bp().parse_args(["energy_history"])
     # main() fills the default; the parser leaves it None
     assert args.date is None

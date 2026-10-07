@@ -6,7 +6,7 @@ import datetime as dt
 
 import pytest
 
-from franklinwh_local import catalog, energy
+from franklinwh_direct_connect_api import catalog, energy
 
 
 def _day(sno: int, load: float, *, peak=0.0, flat=0.0, valley=0.0) -> dict:
