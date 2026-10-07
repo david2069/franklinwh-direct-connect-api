@@ -1,7 +1,16 @@
 name: Deploy Docs
 
 on:
-  # push trigger muted 2026-09-20 (Actions budget $0 until 2026-10-01).
+  # Re-enabled 2026-10-07: the budget freeze that muted this expired 2026-10-01,
+  # and the site had silently gone four commits stale (still titled "FranklinWH
+  # Local" after the rename). Path-filtered so unrelated pushes cost nothing.
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'franklinwh_local/**'      # API.md is generated from the source by mkdocstrings
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
@@ -37,9 +46,8 @@ jobs:
 
   deploy:
     needs: build
-    # Pages isn't enabled for this private repo, so only deploy on a manual
-    # run (after enabling Pages). Pushes just build-check the docs above.
-    if: github.event_name == 'workflow_dispatch'
+    # Pages is enabled and the repo is public, so a docs change on main
+    # publishes. A manual run still works for a forced re-deploy.
     runs-on: ubuntu-latest
     environment:
       name: github-pages
