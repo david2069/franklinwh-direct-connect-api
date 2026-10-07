@@ -85,7 +85,12 @@ python -m franklinwh_local catalog          # module form; works anywhere the pa
 
 The names are easy to mix up: the PyPI distribution is
 **`franklinwh-direct-connect-api`**, the import package is **`franklinwh_local`**
-(underscore), and the CLI command is **`franklinwh-local`** (hyphen).
+(underscore), and the CLI command is **`franklinwh-local`** (hyphen). The `franklinwh_local`
+spelling predates the rename and is kept so existing imports and scripts keep working.
+
+**Direct Connect** is FranklinWH's own term for this protocol. For a ready-made application
+built on this library — REST API, MQTT / Home Assistant entities and a web UI — see the
+[FranklinWH Direct Connect Bridge](https://github.com/david2069/franklinwh-local-bridge).
 
 Everything below assumes the venv is activated. Offline commands
 (`catalog`, `decode`, `analyze`, `emulate`) need no hardware — start with
