@@ -6,6 +6,45 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-08
+
+Renamed the import package and CLI to match the distribution name, so the project has
+**one** name instead of three. Nothing is removed in this release — the old spellings keep
+working and warn.
+
+### Changed
+- Import package `franklinwh_local` → **`franklinwh_direct_connect_api`**.
+- CLI `franklinwh-local` → **`franklinwh-direct-connect`**.
+- `LocalClient` / `LocalTransport` → **`DirectConnectClient`** / **`DirectConnectTransport`**.
+- `--version` and usage text now take the program name from `argv[0]`, so they read
+  correctly under either entry point.
+- `[project.urls]` pointed at the pre-rename repo, which is what PyPI renders; repointed,
+  with Documentation now going to the published site rather than a blob link.
+
+### Deprecated
+Removal in **0.5.0**:
+- importing `franklinwh_local` (any submodule) — emits `DeprecationWarning`;
+- the `franklinwh-local` console script;
+- the `LocalClient` / `LocalTransport` names.
+
+### Migration
+```python
+from franklinwh_local import LocalClient                        # before
+from franklinwh_direct_connect_api import DirectConnectClient    # after
+```
+The alias re-exports the **same module objects**, not copies — `franklinwh_local.CATALOG is
+franklinwh_direct_connect_api.CATALOG`, and `isinstance` holds across both spellings — so
+you can migrate a file at a time. `PYTHONWARNINGS=error::DeprecationWarning` locates what
+is left.
+
+### Why
+"Direct Connect" is FranklinWH's own term for this protocol, and the distribution was
+renamed to match in 0.3.0 — but the import package and CLI kept the older `local`
+spelling. Three names for one library meant the README had to carry a paragraph
+explaining which was which. A distribution name differing from its import name is normal
+Python (`pillow`/`PIL`, `beautifulsoup4`/`bs4`); carrying a *superseded brand* in the
+import name is not the same thing, and is what this fixes.
+
 ## [0.3.0] — 2026-09-13
 
 ### Added

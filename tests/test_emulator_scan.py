@@ -7,9 +7,9 @@ import threading
 
 import pytest
 
-from franklinwh_local import discover
-from franklinwh_local.client import LocalClient
-from franklinwh_local.emulator import Emulator
+from franklinwh_direct_connect_api import discover
+from franklinwh_direct_connect_api.client import LocalClient
+from franklinwh_direct_connect_api.emulator import Emulator
 
 
 @pytest.fixture
@@ -107,7 +107,7 @@ def test_probe_modbus_rejects_short_reply():
 
 
 def test_cli_watch_bounded(emulator, capsys):
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
     rc = main(["--host", "127.0.0.1", "--port", str(emulator.port),
                "power_flow", "--watch", "0", "--count", "3"])
     assert rc == 0
@@ -118,8 +118,8 @@ def test_cli_watch_bounded(emulator, capsys):
 def test_health_does_not_short_circuit_on_ping_fail(monkeypatch, emulator, capsys):
     # A failed ping must NOT short-circuit — the authoritative sendMqtt round-trip
     # (with retries) still runs and succeeds on a lossy-but-working link.
-    from franklinwh_local.cli import main
-    from franklinwh_local import discover
+    from franklinwh_direct_connect_api.cli import main
+    from franklinwh_direct_connect_api import discover
     monkeypatch.setattr(discover, "ping", lambda *a, **k: False)
     rc = main(["--host", "127.0.0.1", "--port", str(emulator.port), "health"])
     out = capsys.readouterr().out
@@ -129,7 +129,7 @@ def test_health_does_not_short_circuit_on_ping_fail(monkeypatch, emulator, capsy
 
 def test_der_comms_modbus_off_requires_confirmation(monkeypatch, capsys):
     # Turning Modbus OFF strands tooling — must confirm; declining aborts before connect.
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
     monkeypatch.setattr("builtins.input", lambda *a: "no")
     rc = main(["--host", "10.0.0.1", "der_comms", "--set-modbus", "off"])
     assert rc == 2
@@ -138,7 +138,7 @@ def test_der_comms_modbus_off_requires_confirmation(monkeypatch, capsys):
 
 def test_der_comms_2030_5_on_requires_confirmation(monkeypatch, capsys):
     # Enabling 2030.5 hands dispatch to a DERMS — must warn + confirm; declining aborts.
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
     monkeypatch.setattr("builtins.input", lambda *a: "no")
     rc = main(["--host", "10.0.0.1", "der_comms", "--set-2030-5", "on"])
     assert rc == 2
@@ -149,7 +149,7 @@ def test_der_comms_2030_5_on_requires_confirmation(monkeypatch, capsys):
 def test_reboot_requires_confirmation(monkeypatch, capsys):
     # reboot without --force must warn and prompt; declining aborts (no reboot sent).
     s = socket.socket(); s.bind(("127.0.0.1", 0)); freeport = s.getsockname()[1]; s.close()
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
     monkeypatch.setattr("builtins.input", lambda *a: "no")
     rc = main(["--host", "127.0.0.1", "--port", str(freeport), "--retries", "0", "reboot"])
     assert rc == 2

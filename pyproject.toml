@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # `franklinwh_local` and the CLI command stays `franklinwh-local`.
 [project]
 name = "franklinwh-direct-connect-api"
-version = "0.3.0"
+version = "0.4.0"
 description = "Unofficial Python library and CLI for the FranklinWH aGate local broker protocol (TCP/9000 sendMqtt cmdType frames)"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
@@ -51,13 +51,17 @@ Issues = "https://github.com/david2069/franklinwh-direct-connect-api/issues"
 "Companion (Cloud API)" = "https://github.com/david2069/franklinwh-cloud"
 
 [project.scripts]
-franklinwh-local = "franklinwh_local.cli:main"
+# Canonical since 0.4.0. `franklinwh-local` stays as a deprecated alias of the
+# same entry point and is scheduled for removal in 0.5.0.
+franklinwh-direct-connect = "franklinwh_direct_connect_api.cli:main"
+franklinwh-local = "franklinwh_direct_connect_api.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["franklinwh_local*"]
+# franklinwh_local is the deprecated import alias (shim only); it ships until 0.5.0.
+include = ["franklinwh_direct_connect_api*", "franklinwh_local*"]
 
 [tool.setuptools.package-data]
-franklinwh_local = ["py.typed"]
+franklinwh_direct_connect_api = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

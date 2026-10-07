@@ -6,8 +6,8 @@ point — these tests pin both halves so neither is generalised to the other.
 """
 import pytest
 
-from franklinwh_local import catalog
-from franklinwh_local.client import LocalClient, _validate_hhmm
+from franklinwh_direct_connect_api import catalog
+from franklinwh_direct_connect_api.client import LocalClient, _validate_hhmm
 
 GEN = {
     "opt": 0, "result": 0, "reason": 0,
@@ -171,7 +171,7 @@ def test_read_payloads_cover_the_commands_that_reject_opt_zero():
 
 def test_transport_records_the_frame_it_sent():
     """Provenance: the UI must be able to SHOW the request, not reconstruct it."""
-    from franklinwh_local.transport import LocalTransport
+    from franklinwh_direct_connect_api.transport import LocalTransport
     assert hasattr(LocalTransport, "last_request")
 
 

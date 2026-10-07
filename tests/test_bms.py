@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from franklinwh_local import bms
+from franklinwh_direct_connect_api import bms
 
 CELLS = {
     "opt": 0, "result": 0, "reason": 0, "id": 1,
@@ -147,13 +147,13 @@ def test_no_color_env_disables_colour(monkeypatch):
 
 # -- CLI wiring --------------------------------------------------------------
 def test_battery_command_and_alias_exist():
-    from franklinwh_local.cli import build_parser
+    from franklinwh_direct_connect_api.cli import build_parser
     subs = {c for a in build_parser()._subparsers._group_actions for c in a.choices}
     assert "battery" in subs and "bms" in subs
 
 
 def test_battery_flags_parse():
-    from franklinwh_local.cli import build_parser
+    from franklinwh_direct_connect_api.cli import build_parser
     args = build_parser().parse_args(
         ["battery", "--id", "2", "--watch", "3", "--for", "5m", "--count", "4"])
     assert args.id == 2 and args.watch == 3.0
@@ -161,12 +161,12 @@ def test_battery_flags_parse():
 
 
 def test_battery_rejects_a_bad_duration(capsys):
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
     assert main(["-i", "10.0.0.1", "battery", "--for", "soon"]) == 2
     assert "bad duration" in capsys.readouterr().err
 
 
 def test_battery_requires_a_host(capsys):
-    from franklinwh_local.cli import main
+    from franklinwh_direct_connect_api.cli import main
     assert main(["battery"]) == 2
     assert "required" in capsys.readouterr().err

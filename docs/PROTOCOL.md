@@ -124,7 +124,7 @@ Most config commands are **read with `opt:0`** and **written with `opt:1`** (the
 same cmdType, with the setpoint fields filled in). Operating-mode selection is
 the exception — it's an `opt:3` on the mode-page command. The aGate replies with
 `opt/result/reason`. Confirmed by capturing the official app driving an aGate X
-over TCP/9000 (2026-06-19); see `franklinwh_local.WRITES`.
+over TCP/9000 (2026-06-19); see `franklinwh_direct_connect_api.WRITES`.
 
 | Action | Request | dataArea |
 |---|---|---|
@@ -187,16 +187,16 @@ Backup:
 | Self-Consumption | 2 | 2 |
 | Time-of-Use | 3 | 1 |
 
-So **resolve a mode by name, never by number** (`franklinwh_local.OPERATING_MODES`
+So **resolve a mode by name, never by number** (`franklinwh_direct_connect_api.OPERATING_MODES`
 holds this mapping; `set_mode` already matches by name/alias). A multi-channel
 integration must map each channel separately — using the modbus number on the
 cloud (or vice versa) silently selects the wrong mode.
 
-For **display**, `franklinwh_local.mode_label(entry)` returns the canonical name
+For **display**, `franklinwh_direct_connect_api.mode_label(entry)` returns the canonical name
 (via `scheduling_type`), overriding TOU's site-specific tariff name (e.g.
 "Ausgrid EA11 TOU" → "Time-of-Use") the way the mobile app and FWHAI do.
 
-Add new rows to `franklinwh_local/catalog.py` as more codes are observed.
+Add new rows to `franklinwh_direct_connect_api/catalog.py` as more codes are observed.
 
 ### `power_flow` (1301): `run_status` vs `mode` — don't confuse them
 
@@ -204,7 +204,7 @@ The `1302` reply carries two easily-confused fields:
 
 **`run_status`** — what the battery is *physically* doing. Same integer enum as
 the cloud API's `runtimeData.run_status` (`franklinwh_cloud.const.RUN_STATUS`),
-so the two channels agree. Available as `franklinwh_local.run_status_desc(code)`:
+so the two channels agree. Available as `franklinwh_direct_connect_api.run_status_desc(code)`:
 
 | `run_status` | Meaning |
 |---|---|

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from franklinwh_local.client import LocalClient
-from franklinwh_local.emulator import Emulator
-from franklinwh_local.synthetic import MODE_IDS, SyntheticSite
+from franklinwh_direct_connect_api.client import LocalClient
+from franklinwh_direct_connect_api.emulator import Emulator
+from franklinwh_direct_connect_api.synthetic import MODE_IDS, SyntheticSite
 
 
 def _ts_for_local_hour(site: SyntheticSite, hour: float, day: int = 20) -> float:
@@ -105,7 +105,7 @@ def test_emulator_dynamic_serves_client(dyn_emulator):
 def test_static_emulator_keeps_canned_path():
     # No seed + dynamic default: a bundled pcap is present, so the canned path is used
     # and the default serial is preserved (regression guard for existing tests).
-    from franklinwh_local.emulator import DEFAULT_EQUIP
+    from franklinwh_direct_connect_api.emulator import DEFAULT_EQUIP
     emu = Emulator("127.0.0.1", 0)
     if emu.canned:                      # only meaningful when the fixture pcap exists
         assert emu.site is None
@@ -116,8 +116,8 @@ def test_emulator_multi_apower():
     """`--units N` presents N distinct aPowers: device_check reports devNum=N with
     N serials, and each unit's cells/states differ (SoC stepped, DCDC follows state)."""
     import time
-    from franklinwh_local import emulator
-    from franklinwh_local.client import LocalClient
+    from franklinwh_direct_connect_api import emulator
+    from franklinwh_direct_connect_api.client import LocalClient
     emu = emulator.Emulator("127.0.0.1", 19071, seed=7, units=3).start()
     try:
         with LocalClient("127.0.0.1", 19071) as c:
@@ -136,7 +136,7 @@ def test_emulator_multi_apower():
 
 # -- NEW: energy history (1303/1304) -----------------------------------------
 def test_energy_history_shape_totals_and_tiers():
-    from franklinwh_local import catalog
+    from franklinwh_direct_connect_api import catalog
     site = SyntheticSite(3)
     now = 20 * 86400.0
     import datetime

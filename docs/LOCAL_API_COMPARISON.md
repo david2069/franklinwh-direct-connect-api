@@ -7,7 +7,7 @@ matters functionally: **what you can actually do with the aGate** through each,
 how far each covers the device's capabilities, and how their documentation
 differs. They are **not** forks of each other.
 
-| | **`franklinwh-local`** (this repo) | **`voidstarr/franklinwh_local`** |
+| | **`franklinwh-direct-connect`** (this repo) | **`voidstarr/franklinwh_local`** |
 | --- | --- | --- |
 | Repo | `david2069/franklinwh-direct-connect-api` | `github.com/voidstarr/franklinwh_local` |
 | PyPI | `franklinwh-direct-connect-api` | — (source only) |

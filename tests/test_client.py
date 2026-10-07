@@ -13,9 +13,9 @@ import threading
 
 import pytest
 
-from franklinwh_local import protocol
-from franklinwh_local.client import LocalClient
-from franklinwh_local.transport import LocalTransport, TransportError
+from franklinwh_direct_connect_api import protocol
+from franklinwh_direct_connect_api.client import LocalClient
+from franklinwh_direct_connect_api.transport import LocalTransport, TransportError
 
 EQUIP = "FAKEGATE90FJ09J6H4F2"
 
@@ -288,7 +288,7 @@ def test_transport_retries_on_transient_error():
 
 
 def test_transport_matches_error_frame_9999():
-    from franklinwh_local.transport import ERROR_CMD
+    from franklinwh_direct_connect_api.transport import ERROR_CMD
     from types import SimpleNamespace as NS
     m = LocalTransport._matches
     assert m(NS(cmd_type=ERROR_CMD), 1234) is True   # 9999 terminates any wait

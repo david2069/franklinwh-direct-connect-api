@@ -1,89 +1,53 @@
+"""Deprecated alias of :mod:`franklinwh_direct_connect_api`.
+
+The import package was renamed in 0.4.0 to match the distribution name and
+FranklinWH's own term for this protocol, "Direct Connect". Importing
+``franklinwh_local`` still works and returns the *same* module objects, so
+``isinstance`` checks, subclassing and ``is`` comparisons across the two
+spellings all hold.
+
+This alias is scheduled for removal in **0.5.0**. To migrate::
+
+    from franklinwh_local import LocalClient          # before
+    from franklinwh_direct_connect_api import DirectConnectClient   # after
+
+Set ``PYTHONWARNINGS=error::DeprecationWarning`` to find remaining uses.
 """
-franklinwh-local
-================
-Unofficial Python library for the FranklinWH aGate **local broker protocol**
-(the JSON ``cmdType`` frames seen on TCP/9000), the lower-level channel that the
-cloud ``sendMqtt`` REST relay sits on top of.
+from __future__ import annotations
 
-Quick start
------------
-Decode a capture::
+import importlib
+import sys
+import warnings
 
-    from franklinwh_local import iter_pcap_frames
-    for frame in iter_pcap_frames("capture.pcap"):
-        print(frame, frame.data_area)
+_NEW = "franklinwh_direct_connect_api"
 
-Build/parse a single frame::
-
-    from franklinwh_local import encode_frame, decode_frame
-    wire = encode_frame(1301, "FAKEGATE90FJ09J6H4F2", {"opt": 0})
-    frame = decode_frame(wire)
-
-Talk to a gateway (live)::
-
-    from franklinwh_local import LocalClient
-    with LocalClient("10.100.1.1") as c:
-        c.login()
-        print(c.power_flow())
-"""
-
-from .catalog import (
-    CATALOG,
-    OPERATING_MODES,
-    RUN_STATUS,
-    WORK_MODE_NAMES,
-    WRITES,
-    Cmd,
-    CmdInfo,
-    describe,
-    mode_label,
-    response_for,
-    run_status_desc,
+warnings.warn(
+    f"'franklinwh_local' was renamed to '{_NEW}' in 0.4.0 and will be removed in "
+    f"0.5.0. Replace 'import franklinwh_local' with 'import {_NEW}' "
+    "(and 'LocalClient' with 'DirectConnectClient').",
+    DeprecationWarning,
+    stacklevel=2,
 )
-from .client import LocalClient
-from .protocol import (
-    Frame,
-    FrameStream,
-    decode_frame,
-    derive_seed,
-    detect_seed,
-    encode_frame,
-    iter_pcap_frames,
+
+_target = importlib.import_module(_NEW)
+
+# Re-export the public surface, so `from franklinwh_local import X` works for
+# every name the new package exports.
+globals().update({n: getattr(_target, n) for n in _target.__all__})
+__all__ = list(_target.__all__)
+__version__ = _target.__version__
+
+# Alias the submodules too, so `from franklinwh_local.catalog import CATALOG`
+# and `import franklinwh_local.transport` resolve to the SAME module objects
+# rather than loading a second copy (a second copy would give two distinct
+# CATALOG dicts and break identity checks).
+_SUBMODULES = (
+    "bms", "catalog", "cli", "client", "discover", "emulator", "energy",
+    "probe", "protocol", "proxy", "synthetic", "transport",
 )
-from .transport import LocalTransport, TransportError
-from .discover import HostResult, expand_targets, scan
-from .emulator import Emulator
-from .proxy import log_frame, serve as proxy_serve
+for _name in _SUBMODULES:
+    _mod = importlib.import_module(f"{_NEW}.{_name}")
+    sys.modules[f"{__name__}.{_name}"] = _mod
+    globals()[_name] = _mod
 
-__version__ = "0.3.0"
-
-__all__ = [
-    "Cmd",
-    "CmdInfo",
-    "CATALOG",
-    "OPERATING_MODES",
-    "RUN_STATUS",
-    "WORK_MODE_NAMES",
-    "WRITES",
-    "describe",
-    "mode_label",
-    "response_for",
-    "run_status_desc",
-    "Frame",
-    "FrameStream",
-    "encode_frame",
-    "decode_frame",
-    "derive_seed",
-    "detect_seed",
-    "iter_pcap_frames",
-    "LocalTransport",
-    "TransportError",
-    "LocalClient",
-    "Emulator",
-    "HostResult",
-    "scan",
-    "expand_targets",
-    "proxy_serve",
-    "log_frame",
-    "__version__",
-]
+del _name, _mod, importlib

@@ -26,6 +26,9 @@ import json
 import re
 import sys
 
+import os as _os
+import sys as _sys
+
 from . import __version__, catalog, iter_pcap_frames
 from .client import LocalClient
 from .transport import DEFAULT_RETRIES, DEFAULT_TIMEOUT, TransportError
@@ -1266,7 +1269,13 @@ class _FriendlyParser(argparse.ArgumentParser):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = _FriendlyParser(prog="franklinwh-local", description=__doc__,
+    # Take the name the user actually invoked, so usage/--version read correctly
+    # under either entry point (franklinwh-direct-connect or the deprecated
+    # franklinwh-local) and under `python -m`.
+    prog = _os.path.basename(_sys.argv[0]) or "franklinwh-direct-connect"
+    if prog in ("__main__.py", "-c", "python", "python3"):
+        prog = "franklinwh-direct-connect"
+    p = _FriendlyParser(prog=prog, description=__doc__,
                         epilog=_commands_epilog(),
                         formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")

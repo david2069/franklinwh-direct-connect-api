@@ -58,8 +58,8 @@ python3 -m venv .venv          # 1. create a virtualenv
 source .venv/bin/activate      # 2. activate it  (Windows: .venv\Scripts\activate)
 pip install -e .               # 3. install this checkout (editable)
 
-franklinwh-local --version     # 4. verify
-# franklinwh-local 0.3.0
+franklinwh-direct-connect --version     # 4. verify
+# franklinwh-direct-connect 0.4.0
 ```
 
 Add `".[test]"` instead of `"."` in step 3 if you want to run the pytest suite.
@@ -67,42 +67,57 @@ From PyPI (no checkout needed) the install is `pip install franklinwh-direct-con
 
 ### How to run it
 
-`franklinwh-local` is a **console script** that `pip install` puts on your
+`franklinwh-direct-connect` is a **console script** that `pip install` puts on your
 `PATH` — it is *not* a `.py` file in this repo, so these do **not** work:
 
 ```bash
-python franklinwh-local ...        # can't open file '.../franklinwh-local'
-python franklinwh_local.py ...     # no such file
+python franklinwh-direct-connect ...        # can't open file '.../franklinwh-direct-connect'
+python franklinwh_direct_connect_api.py ...     # no such file
 ```
 
 Run it one of these three ways:
 
 ```bash
-franklinwh-local catalog                    # venv activated (recommended)
-.venv/bin/franklinwh-local catalog          # venv not activated — call it by path
-python -m franklinwh_local catalog          # module form; works anywhere the package imports
+franklinwh-direct-connect catalog                    # venv activated (recommended)
+.venv/bin/franklinwh-direct-connect catalog          # venv not activated — call it by path
+python -m franklinwh_direct_connect_api catalog          # module form; works anywhere the package imports
 ```
 
-The names are easy to mix up: the PyPI distribution is
-**`franklinwh-direct-connect-api`**, the import package is **`franklinwh_local`**
-(underscore), and the CLI command is **`franklinwh-local`** (hyphen). The `franklinwh_local`
-spelling predates the rename and is kept so existing imports and scripts keep working.
+One name throughout, as of 0.4.0: distribution **`franklinwh-direct-connect-api`**, import
+package **`franklinwh_direct_connect_api`**, CLI **`franklinwh-direct-connect`**. **Direct
+Connect** is FranklinWH's own term for this protocol.
 
-**Direct Connect** is FranklinWH's own term for this protocol. For a ready-made application
-built on this library — REST API, MQTT / Home Assistant entities and a web UI — see the
+### Migrating from 0.3.x and earlier
+
+The import package was `franklinwh_local` and the CLI was `franklinwh-local`. Both still
+work in 0.4.x and emit a `DeprecationWarning`; **they are removed in 0.5.0**.
+
+```python
+from franklinwh_local import LocalClient                         # 0.3.x — deprecated
+from franklinwh_direct_connect_api import DirectConnectClient     # 0.4.0 onward
+```
+
+The alias re-exports the *same* objects, so `isinstance`, subclassing and `is` comparisons
+hold across both spellings — you can migrate file by file. `LocalClient` and
+`LocalTransport` also remain as aliases of `DirectConnectClient` / `DirectConnectTransport`.
+To find every remaining use, run with `PYTHONWARNINGS=error::DeprecationWarning`.
+
+For a ready-made application built on this library — REST API, MQTT / Home Assistant
+entities and a web UI — see the
 [FranklinWH Direct Connect Bridge](https://github.com/david2069/franklinwh-local-bridge).
 
 Everything below assumes the venv is activated. Offline commands
 (`catalog`, `decode`, `analyze`, `emulate`) need no hardware — start with
-`franklinwh-local catalog` to confirm your install works.
+`franklinwh-direct-connect catalog` to confirm your install works.
 
 ### Troubleshooting the install
 
 | Symptom | Cause / fix |
 | --- | --- |
-| `can't open file '.../franklinwh-local'` | You ran `python franklinwh-local`. Drop the `python` — it's a command, not a script. |
-| `command not found: franklinwh-local` | The venv isn't activated (`source .venv/bin/activate`), or `pip install -e .` hasn't been run in it. |
-| `No module named franklinwh_local` | You're on a different interpreter than the one you installed into. Check with `which python` and `pip -V` — both should point inside `.venv`. |
+| `can't open file '.../franklinwh-direct-connect'` | You ran `python franklinwh-direct-connect`. Drop the `python` — it's a command, not a script. |
+| `command not found: franklinwh-direct-connect` | The venv isn't activated (`source .venv/bin/activate`), or `pip install -e .` hasn't been run in it. |
+| `No module named franklinwh_direct_connect_api` | You're on a different interpreter than the one you installed into. Check with `which python` and `pip -V` — both should point inside `.venv`. |
+| `DeprecationWarning: 'franklinwh_local' was renamed` | Expected on 0.4.x if you import the old name. See [Migrating](#migrating-from-03x-and-earlier); it stops working at 0.5.0. |
 | `error: externally-managed-environment` | You ran `pip install` outside a venv on a Homebrew/system Python. Create and activate the venv first. |
 
 ## Quick start
@@ -110,7 +125,7 @@ Everything below assumes the venv is activated. Offline commands
 Decode a capture (offline, no hardware):
 
 ```python
-from franklinwh_local import iter_pcap_frames
+from franklinwh_direct_connect_api import iter_pcap_frames
 
 for frame in iter_pcap_frames("capture.pcap"):
     print(frame, frame.data_area)
@@ -119,7 +134,7 @@ for frame in iter_pcap_frames("capture.pcap"):
 Build and parse a single frame:
 
 ```python
-from franklinwh_local import encode_frame, decode_frame
+from franklinwh_direct_connect_api import encode_frame, decode_frame
 
 wire  = encode_frame(1301, "FAKEGATE90FJ09J6H4F2", {"opt": 0})  # power-flow poll
 frame = decode_frame(wire)
@@ -129,7 +144,7 @@ assert frame.verify()          # len + crc check
 Talk to a live gateway:
 
 ```python
-from franklinwh_local import LocalClient
+from franklinwh_direct_connect_api import LocalClient
 
 with LocalClient("10.100.1.1") as c:   # the hotspot gateway IP
     c.login()                  # 1101 -> 1102 (firmware manifest)
@@ -145,8 +160,8 @@ with LocalClient("10.100.1.1") as c:   # the hotspot gateway IP
 ### Battery Management
 
 ```bash
-franklinwh-local -i 192.0.2.110 battery            # per-cell view
-franklinwh-local -i 192.0.2.110 battery --watch 2 --for 10m
+franklinwh-direct-connect -i 192.0.2.110 battery            # per-cell view
+franklinwh-direct-connect -i 192.0.2.110 battery --watch 2 --for 10m
 ```
 
 Per-cell voltages and temperatures, pack SoC/SoH, bus rails and states — one session,
@@ -158,10 +173,10 @@ Four reads are addressed to a **specific device** rather than the gateway, and n
 `id` from `device_check` / `battery_modules` (`devMap[].id`):
 
 ```bash
-franklinwh-local -i 192.0.2.110 battery_cells --id 1      # per-cell V + temps, SoC/SoH
-franklinwh-local -i 192.0.2.110 power_electronics --id 1  # bus/grid/inverter V and A
-franklinwh-local -i 192.0.2.110 device_firmware --id 1    # PE/BMS serials + versions
-franklinwh-local -i 192.0.2.110 device_states --id 1      # DSP/main/PE/BMS states
+franklinwh-direct-connect -i 192.0.2.110 battery_cells --id 1      # per-cell V + temps, SoC/SoH
+franklinwh-direct-connect -i 192.0.2.110 power_electronics --id 1  # bus/grid/inverter V and A
+franklinwh-direct-connect -i 192.0.2.110 device_firmware --id 1    # PE/BMS serials + versions
+franklinwh-direct-connect -i 192.0.2.110 device_states --id 1      # DSP/main/PE/BMS states
 ```
 
 Called **without** `id` they return the same keys with empty or zero values
@@ -178,8 +193,8 @@ Connect" path the FranklinWH mobile app uses. To talk to it:
    `LocalClient` / the CLI at it, or let the scanner find it:
 
    ```bash
-   franklinwh-local scan gateway        # auto-targets the hotspot gateway
-   franklinwh-local --host 10.100.1.1 power_flow
+   franklinwh-direct-connect scan gateway        # auto-targets the hotspot gateway
+   franklinwh-direct-connect --host 10.100.1.1 power_flow
    ```
 
 (The app also offers a Bluetooth Direct Connect path; only the WiFi/TCP path is
@@ -188,9 +203,9 @@ implemented here.)
 ### Discover devices on the LAN
 
 ```bash
-franklinwh-local scan 10.100.1.0/24    # scan a subnet
-franklinwh-local scan gateway          # just the hotspot gateway
-franklinwh-local scan 10.0.0.0/24 --json
+franklinwh-direct-connect scan 10.100.1.0/24    # scan a subnet
+franklinwh-direct-connect scan gateway          # just the hotspot gateway
+franklinwh-direct-connect scan 10.0.0.0/24 --json
 ```
 
 Detects open **TCP 9000** (sendMqtt) and **TCP 502** (Modbus), and by default
@@ -199,29 +214,29 @@ Detects open **TCP 9000** (sendMqtt) and **TCP 502** (Modbus), and by default
 ### Test without hardware (emulator)
 
 ```bash
-franklinwh-local emulate --port 9000   # fake aGate replaying captured data
+franklinwh-direct-connect emulate --port 9000   # fake aGate replaying captured data
 # then, in another shell:
-franklinwh-local --host 127.0.0.1 power_flow
+franklinwh-direct-connect --host 127.0.0.1 power_flow
 ```
 
 ## CLI
 
 ```bash
-franklinwh-local catalog                       # list known cmdType codes (grouped)
-franklinwh-local catalog --grep bms            # filter by name/description/cloud call
-franklinwh-local catalog --json                # ... as JSON, with cloud equivalents
-franklinwh-local decode capture.pcap           # decode a pcap
-franklinwh-local decode capture.pcap --json    # ... as JSON
+franklinwh-direct-connect catalog                       # list known cmdType codes (grouped)
+franklinwh-direct-connect catalog --grep bms            # filter by name/description/cloud call
+franklinwh-direct-connect catalog --json                # ... as JSON, with cloud equivalents
+franklinwh-direct-connect decode capture.pcap           # decode a pcap
+franklinwh-direct-connect decode capture.pcap --json    # ... as JSON
 
-franklinwh-local --host 10.100.1.1 power_flow  # live read
-franklinwh-local --host 10.100.1.1 call 1301 --data '{"opt":0}'
+franklinwh-direct-connect --host 10.100.1.1 power_flow  # live read
+franklinwh-direct-connect --host 10.100.1.1 call 1301 --data '{"opt":0}'
 
-franklinwh-local --host 10.100.1.1 power_flow --watch 5          # poll every 5s
-franklinwh-local --host 10.100.1.1 power_flow --watch 5 --count 12
+franklinwh-direct-connect --host 10.100.1.1 power_flow --watch 5          # poll every 5s
+franklinwh-direct-connect --host 10.100.1.1 power_flow --watch 5 --count 12
 ```
 
 **Every name in `catalog` is a live subcommand** — the command list is generated from
-the catalog, so the two cannot drift. `franklinwh-local -i <ip> grid_ov_trip` works just
+the catalog, so the two cannot drift. `franklinwh-direct-connect -i <ip> grid_ov_trip` works just
 as `power_flow` does, and anything uncatalogued is still reachable via `call <code>`.
 
 `--watch [SECONDS]` (default 5) reuses one logged-in session and prints a line
@@ -231,29 +246,29 @@ per poll — a friendly summary for `power_flow`, compact JSON otherwise.
 ## Control (live writes)
 
 Confirmed working over LAN TCP/9000 (no SPAN unlock, no cloud) — see
-[`catalog.WRITES`](franklinwh_local/catalog.py) and `docs/PROTOCOL.md`. The CLI
+[`catalog.WRITES`](franklinwh_direct_connect_api/catalog.py) and `docs/PROTOCOL.md`. The CLI
 shape mirrors the sibling tools: `-i/--ip` for the aGate (as in
 [franklinwh-modbus](https://github.com/david2069/franklinwh-modbus)), and a
 get-or-`--set` command (as in
 [franklinwh-cloud](https://github.com/david2069/franklinwh-cloud)):
 
 ```bash
-franklinwh-local -i 192.0.2.110 mode                  # just the current mode
-franklinwh-local -i 192.0.2.110 mode --list           # all modes + details
-franklinwh-local -i 192.0.2.110 mode --json           # decoded dataArea (JSON)
-franklinwh-local -i 192.0.2.110 mode --raw            # full on-the-wire frame (cmdType/snno/crc/...)
-franklinwh-local -i 192.0.2.110 mode --set self       # set; alias tou / self / sc / backup
-franklinwh-local -i 192.0.2.110 mode --set 29287      # ...or a programme id
+franklinwh-direct-connect -i 192.0.2.110 mode                  # just the current mode
+franklinwh-direct-connect -i 192.0.2.110 mode --list           # all modes + details
+franklinwh-direct-connect -i 192.0.2.110 mode --json           # decoded dataArea (JSON)
+franklinwh-direct-connect -i 192.0.2.110 mode --raw            # full on-the-wire frame (cmdType/snno/crc/...)
+franklinwh-direct-connect -i 192.0.2.110 mode --set self       # set; alias tou / self / sc / backup
+franklinwh-direct-connect -i 192.0.2.110 mode --set 29287      # ...or a programme id
 
-franklinwh-local -i 192.0.2.110 offgrid               # show off-grid status
-franklinwh-local -i 192.0.2.110 offgrid --set on --soc 5
-franklinwh-local -i 192.0.2.110 offgrid --set off     # reconnect
+franklinwh-direct-connect -i 192.0.2.110 offgrid               # show off-grid status
+franklinwh-direct-connect -i 192.0.2.110 offgrid --set on --soc 5
+franklinwh-direct-connect -i 192.0.2.110 offgrid --set off     # reconnect
 ```
 
 In Python:
 
 ```python
-from franklinwh_local import LocalClient
+from franklinwh_direct_connect_api import LocalClient
 with LocalClient("192.0.2.110") as c:
     c.login()
     c.set_mode("tou")                  # 1727 {opt:3, current_id}; alias or full name or id
@@ -278,8 +293,8 @@ show ciphered bytes):
 sudo tcpdump -i <iface> -s0 -w fwh.pcap 'tcp port 9000'
 
 # 2. triage — lists every cmdType seen; flags the ones NOT in the catalog:
-franklinwh-local analyze fwh.pcap
-franklinwh-local analyze fwh.pcap --unknown    # just the candidate write codes
+franklinwh-direct-connect analyze fwh.pcap
+franklinwh-direct-connect analyze fwh.pcap --unknown    # just the candidate write codes
 ```
 
 Or watch the conversation live with a **transparent decoding proxy** — redirect
@@ -287,10 +302,10 @@ the app's `:9000` to it (ARP-spoof + DNAT, or a host route); it forwards every
 byte verbatim and prints each decoded frame, flagging unknown cmdTypes:
 
 ```bash
-franklinwh-local proxy 192.0.2.110          # relay :9000 -> aGate:9000
-franklinwh-local proxy 192.0.2.110 --listen 0.0.0.0:9000
-franklinwh-local proxy 192.0.2.110 --record session.pcap   # capture on demand
-#   session.pcap opens in Wireshark and re-decodes: franklinwh-local decode session.pcap
+franklinwh-direct-connect proxy 192.0.2.110          # relay :9000 -> aGate:9000
+franklinwh-direct-connect proxy 192.0.2.110 --listen 0.0.0.0:9000
+franklinwh-direct-connect proxy 192.0.2.110 --record session.pcap   # capture on demand
+#   session.pcap opens in Wireshark and re-decodes: franklinwh-direct-connect decode session.pcap
 ```
 
 > Unknown **odd** codes captured during a control action are the requests; their
@@ -300,9 +315,9 @@ Or sweep the gateway directly with **`probe`**, which tries several *request pay
 shapes* per code rather than only the usual `{"opt":0}`:
 
 ```bash
-franklinwh-local -i 192.0.2.110 probe                      # all uncatalogued odd codes
-franklinwh-local -i 192.0.2.110 probe --range 1413-1699    # one block
-franklinwh-local -i 192.0.2.110 probe --json > probe.json
+franklinwh-direct-connect -i 192.0.2.110 probe                      # all uncatalogued odd codes
+franklinwh-direct-connect -i 192.0.2.110 probe --range 1413-1699    # one block
+franklinwh-direct-connect -i 192.0.2.110 probe --json > probe.json
 ```
 
 Some reads are addressed **per battery**, not per gateway — the cloud API's per-cell BMS
@@ -349,7 +364,7 @@ accordingly.
 ## Layout
 
 ```
-franklinwh_local/
+franklinwh_direct_connect_api/
   protocol.py    cipher, Frame, encode/decode, FrameStream, pcap reader
   catalog.py     cmdType enum + descriptions
   transport.py   TCP client: connect, login, request/response

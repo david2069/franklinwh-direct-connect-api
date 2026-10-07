@@ -12,9 +12,9 @@ import time
 
 import pytest
 
-from franklinwh_local import proxy
-from franklinwh_local.client import LocalClient
-from franklinwh_local.emulator import Emulator
+from franklinwh_direct_connect_api import proxy
+from franklinwh_direct_connect_api.client import LocalClient
+from franklinwh_direct_connect_api.emulator import Emulator
 
 
 @pytest.fixture
@@ -64,7 +64,7 @@ def test_proxy_relays_and_decodes(emulator):
 
 def test_proxy_record_writes_decodable_pcap(emulator, tmp_path):
     """--record writes a pcap that re-decodes cleanly (recreate captures on demand)."""
-    from franklinwh_local.protocol import iter_pcap_frames
+    from franklinwh_direct_connect_api.protocol import iter_pcap_frames
 
     pcap = tmp_path / "rec.pcap"
     port_ready: list[int] = []

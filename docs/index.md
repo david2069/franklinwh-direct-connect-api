@@ -38,7 +38,7 @@ lower-level device↔broker channel that the cloud `sendMqtt` REST relay (see
 
 The cloud REST API drops most structural telemetry (battery cell voltages, relay
 states, full physics arrays) to speed up the mobile app. That data still flows
-over the local broker channel. `franklinwh-local` speaks it directly.
+over the local broker channel. `franklinwh-direct-connect` speaks it directly.
 
 ## Where to go next
 
@@ -57,7 +57,7 @@ over the local broker channel. `franklinwh-local` speaks it directly.
 ## 30-second taste
 
 ```python
-from franklinwh_local import LocalClient
+from franklinwh_direct_connect_api import LocalClient
 
 with LocalClient("10.100.1.1") as c:   # the hotspot gateway IP
     c.login()
@@ -66,9 +66,9 @@ with LocalClient("10.100.1.1") as c:   # the hotspot gateway IP
 ```
 
 ```bash
-franklinwh-local scan gateway                    # find the aGate on its hotspot
-franklinwh-local --host 10.100.1.1 power_flow --watch 5
-franklinwh-local emulate --port 9000             # test with no hardware
+franklinwh-direct-connect scan gateway                    # find the aGate on its hotspot
+franklinwh-direct-connect --host 10.100.1.1 power_flow --watch 5
+franklinwh-direct-connect emulate --port 9000             # test with no hardware
 ```
 
 !!! note "Security"
