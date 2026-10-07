@@ -29,7 +29,7 @@ A FranklinWH aGate can be reached three different ways:
   reads and a few setpoints, but only a narrow slice of what the device actually knows.
 - **The aGate's own local broker protocol** — the proprietary `sendMqtt` `cmdType` channel
   on **TCP/9000** that the app itself speaks under the hood. The official FranklinWH app
-  calls this interface **"Direct Connect."** This is what `franklinwh-local` implements.
+  calls this interface **"Direct Connect."** This is what this library implements.
 
 The project exists to demonstrate that third path: a fully **local, no-cloud, no-account**
 way to **query, control, and administer** an aGate directly on your LAN — no FranklinWH
@@ -44,7 +44,7 @@ together in one place.
 > **no affiliation with, endorsement by, or support from FranklinWH** — this is unofficial,
 > reverse-engineered software, provided as-is.
 
-**Docs:** [USAGE.md](docs/USAGE.md) (full how-to) · [PROTOCOL.md](docs/PROTOCOL.md) (wire format + command catalog) · [API.md](docs/API.md) (API reference)
+**Docs:** <https://david2069.github.io/franklinwh-direct-connect-api/> — [Usage](https://david2069.github.io/franklinwh-direct-connect-api/USAGE/) (full how-to) · [Protocol & catalog](https://david2069.github.io/franklinwh-direct-connect-api/PROTOCOL/) (wire format + command catalog) · [API reference](https://david2069.github.io/franklinwh-direct-connect-api/API/). The same pages as markdown: [`docs/`](docs/).
 
 ## Setup
 
@@ -52,14 +52,14 @@ Requires **Python 3.10+**. No runtime dependencies (standard library only).
 
 ```bash
 git clone https://github.com/david2069/franklinwh-direct-connect-api
-cd franklinwh-local
+cd franklinwh-direct-connect-api
 
 python3 -m venv .venv          # 1. create a virtualenv
 source .venv/bin/activate      # 2. activate it  (Windows: .venv\Scripts\activate)
 pip install -e .               # 3. install this checkout (editable)
 
 franklinwh-local --version     # 4. verify
-# franklinwh-local 0.1.0
+# franklinwh-local 0.3.0
 ```
 
 Add `".[test]"` instead of `"."` in step 3 if you want to run the pytest suite.
@@ -71,7 +71,7 @@ From PyPI (no checkout needed) the install is `pip install franklinwh-direct-con
 `PATH` — it is *not* a `.py` file in this repo, so these do **not** work:
 
 ```bash
-python franklinwh-local ...        # can't open file '.../franklinwh-direct-connect-api'
+python franklinwh-local ...        # can't open file '.../franklinwh-local'
 python franklinwh_local.py ...     # no such file
 ```
 
@@ -79,7 +79,7 @@ Run it one of these three ways:
 
 ```bash
 franklinwh-local catalog                    # venv activated (recommended)
-.venv/bin/franklinwh-direct-connect-api catalog          # venv not activated — call it by path
+.venv/bin/franklinwh-local catalog          # venv not activated — call it by path
 python -m franklinwh_local catalog          # module form; works anywhere the package imports
 ```
 
@@ -95,7 +95,7 @@ Everything below assumes the venv is activated. Offline commands
 
 | Symptom | Cause / fix |
 | --- | --- |
-| `can't open file '.../franklinwh-direct-connect-api'` | You ran `python franklinwh-local`. Drop the `python` — it's a command, not a script. |
+| `can't open file '.../franklinwh-local'` | You ran `python franklinwh-local`. Drop the `python` — it's a command, not a script. |
 | `command not found: franklinwh-local` | The venv isn't activated (`source .venv/bin/activate`), or `pip install -e .` hasn't been run in it. |
 | `No module named franklinwh_local` | You're on a different interpreter than the one you installed into. Check with `which python` and `pip -V` — both should point inside `.venv`. |
 | `error: externally-managed-environment` | You ran `pip install` outside a venv on a Homebrew/system Python. Create and activate the venv first. |

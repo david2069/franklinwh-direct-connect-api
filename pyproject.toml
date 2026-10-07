@@ -43,11 +43,11 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/david2069/franklinwh-local"
-Repository = "https://github.com/david2069/franklinwh-local"
-Documentation = "https://github.com/david2069/franklinwh-local/blob/main/docs/USAGE.md"
-Changelog = "https://github.com/david2069/franklinwh-local/blob/main/CHANGELOG.md"
-Issues = "https://github.com/david2069/franklinwh-local/issues"
+Homepage = "https://github.com/david2069/franklinwh-direct-connect-api"
+Repository = "https://github.com/david2069/franklinwh-direct-connect-api"
+Documentation = "https://david2069.github.io/franklinwh-direct-connect-api/"
+Changelog = "https://github.com/david2069/franklinwh-direct-connect-api/blob/main/CHANGELOG.md"
+Issues = "https://github.com/david2069/franklinwh-direct-connect-api/issues"
 "Companion (Cloud API)" = "https://github.com/david2069/franklinwh-cloud"
 
 [project.scripts]
