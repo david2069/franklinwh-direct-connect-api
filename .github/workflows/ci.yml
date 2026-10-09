@@ -43,18 +43,20 @@ jobs:
         run: pip install -e .
       - name: CLI smoke (offline)
         run: |
+          franklinwh-direct-connect --version
+          franklinwh-direct-connect catalog
+          franklinwh-direct-connect decode tests/fixtures/smoke.pcap --json > /dev/null
+          # the deprecated alias must keep working for the whole 0.4.x line
           franklinwh-local --version
-          franklinwh-local catalog
-          franklinwh-local decode tests/fixtures/fhp_wifi_ap.pcap --json > /dev/null
       - name: Emulator + client + scan round-trip
         run: |
           python - <<'PY'
-          from franklinwh_local.emulator import Emulator
-          from franklinwh_local.client import LocalClient
-          from franklinwh_local import discover
+          from franklinwh_direct_connect_api.emulator import Emulator
+          from franklinwh_direct_connect_api.client import DirectConnectClient
+          from franklinwh_direct_connect_api import discover
           emu = Emulator("127.0.0.1", 9000).start()
           try:
-              with LocalClient("127.0.0.1", 9000, timeout=3.0) as c:
+              with DirectConnectClient("127.0.0.1", 9000, timeout=3.0) as c:
                   assert c.login()["IBG_SN"]
                   assert "soc" in c.power_flow()
               res = discover.scan(["127.0.0.1"], timeout=1.0)

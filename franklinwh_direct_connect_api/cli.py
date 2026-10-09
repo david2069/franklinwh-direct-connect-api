@@ -1,21 +1,21 @@
 """
-Command-line interface for franklinwh-local.
+Command-line interface for franklinwh-direct-connect.
 
 Examples
 --------
 Decode a capture file (offline, no hardware needed)::
 
-    franklinwh-local decode capture.pcap
-    franklinwh-local decode capture.pcap --json
+    franklinwh-direct-connect decode capture.pcap
+    franklinwh-direct-connect decode capture.pcap --json
 
 List the known command catalog::
 
-    franklinwh-local catalog
+    franklinwh-direct-connect catalog
 
 Talk to a live gateway::
 
-    franklinwh-local --host 10.100.1.1 power_flow
-    franklinwh-local --host 10.100.1.1 call 1301
+    franklinwh-direct-connect --host 10.100.1.1 power_flow
+    franklinwh-direct-connect --host 10.100.1.1 call 1301
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ import os as _os
 import sys as _sys
 
 from . import __version__, catalog, iter_pcap_frames
-from .client import LocalClient
+from .client import DirectConnectClient
 from .transport import DEFAULT_RETRIES, DEFAULT_TIMEOUT, TransportError
 from . import discover as _discover
 from . import emulator as _emulator
@@ -225,7 +225,7 @@ def _cmd_catalog(args: argparse.Namespace) -> int:
           f"Flags: W = write helper exists, ? = purpose UNCONFIRMED, "
           f"! = maintenance (the opt=0 read is safe).\n"
           f"Every name above is a live subcommand: "
-          f"franklinwh-local -i <ip> <name>   (or: call <code>)", file=sys.stderr)
+          f"franklinwh-direct-connect -i <ip> <name>   (or: call <code>)", file=sys.stderr)
     return 0
 
 
@@ -238,7 +238,7 @@ def _cmd_scan(args: argparse.Namespace) -> int:
                 "  Make sure you are joined to the aGate WiFi hotspot "
                 "(SSID AP_<serial>),\n"
                 "  then retry. Or pass an explicit target: "
-                "franklinwh-local scan 10.100.1.0/24",
+                "franklinwh-direct-connect scan 10.100.1.0/24",
                 file=sys.stderr,
             )
             return 2
@@ -358,7 +358,7 @@ def _cmd_der_comms(args: argparse.Namespace) -> int:
 
     host, port = args.host, args.port
     try:
-        with LocalClient(host, port, timeout=args.timeout,
+        with DirectConnectClient(host, port, timeout=args.timeout,
                          retries=args.retries, equip_no=args.equip) as c:
             if args.equip is None:
                 c.login()
@@ -419,7 +419,7 @@ def _cmd_der_comms(args: argparse.Namespace) -> int:
 def _reboot_then_verify_502(args, host, port) -> int:
     """Reboot the aGate and confirm Modbus :502 comes back (for --set-modbus on --and-reboot)."""
     try:
-        with LocalClient(host, port, timeout=args.timeout, retries=0,
+        with DirectConnectClient(host, port, timeout=args.timeout, retries=0,
                          equip_no=args.equip) as c:
             if args.equip is None:
                 c.login()
@@ -458,7 +458,7 @@ def _cmd_health(args: argparse.Namespace) -> int:
     checks["latency_ms"] = None
     checks["sunsMdEn"] = None
     try:
-        with LocalClient(host, port, timeout=15.0, retries=3, equip_no=args.equip) as c:
+        with DirectConnectClient(host, port, timeout=15.0, retries=3, equip_no=args.equip) as c:
             t0 = time.time()
             if args.equip is None:
                 c.login()
@@ -494,7 +494,7 @@ def _cmd_health(args: argparse.Namespace) -> int:
         if not checks["sendmqtt_9000"]:
             print(f"  hint: no sendMqtt round-trip — if ping also fails the aGate may be "
                   f"off-LAN (4G failover) or on a new IP; re-discover with "
-                  f"'franklinwh-local scan <subnet>'.")
+                  f"'franklinwh-direct-connect scan <subnet>'.")
     return 0 if checks["sendmqtt_9000"] else 1
 
 
@@ -504,7 +504,7 @@ def _cmd_firmware(args: argparse.Namespace) -> int:
         print("error: --host/-i is required for live commands", file=sys.stderr)
         return 2
     try:
-        with LocalClient(args.host, args.port, timeout=args.timeout,
+        with DirectConnectClient(args.host, args.port, timeout=args.timeout,
                          retries=args.retries, equip_no=args.equip) as c:
             fw = c.firmware()
             if args.json:
@@ -548,7 +548,7 @@ def _cmd_reboot(args: argparse.Namespace) -> int:
 
     # Pre-flight: capture net state and warn about 4G before the confirmation.
     try:
-        with LocalClient(host, port, timeout=args.timeout, retries=args.retries,
+        with DirectConnectClient(host, port, timeout=args.timeout, retries=args.retries,
                          equip_no=args.equip) as pre:
             if args.equip is None:
                 pre.login()
@@ -569,7 +569,7 @@ def _cmd_reboot(args: argparse.Namespace) -> int:
 
     try:
         # retries=0: the socket drops on reboot; don't spin trying to reconnect.
-        with LocalClient(host, port, timeout=args.timeout,
+        with DirectConnectClient(host, port, timeout=args.timeout,
                          retries=0, equip_no=args.equip) as c:
             if args.equip is None:
                 c.login()
@@ -616,7 +616,7 @@ def _wait_for_reboot(args, host: str, port: int, wait: int) -> int:
         el = time.time() - start
         if _discover.port_open(host, port, timeout=2.0):
             try:
-                with LocalClient(host, port, timeout=8.0, retries=1,
+                with DirectConnectClient(host, port, timeout=8.0, retries=1,
                                  equip_no=args.equip) as c2:
                     if args.equip is None:
                         c2.login()
@@ -651,7 +651,7 @@ def _rediscover(host: str) -> int:
             print(f"  found aGate at {r.host} (IBG_SN={ (r.manifest or {}).get('IBG_SN') })")
         return 0
     print("  aGate not found on the subnet yet — it may still be booting or on 4G. "
-          "Retry 'franklinwh-local scan <subnet>' shortly.", file=sys.stderr)
+          "Retry 'franklinwh-direct-connect scan <subnet>' shortly.", file=sys.stderr)
     return 1
 
 
@@ -661,7 +661,7 @@ def _cmd_grid_profile(args: argparse.Namespace) -> int:
         print("error: --host/-i is required for live commands", file=sys.stderr)
         return 2
     try:
-        with LocalClient(args.host, args.port, timeout=args.timeout, retries=args.retries, equip_no=args.equip) as c:
+        with DirectConnectClient(args.host, args.port, timeout=args.timeout, retries=args.retries, equip_no=args.equip) as c:
             if args.equip is None:
                 c.login()
             result = c.grid_profile()
@@ -679,7 +679,7 @@ def _cmd_control(args: argparse.Namespace) -> int:
         print("error: --host/-i is required for live commands", file=sys.stderr)
         return 2
     try:
-        with LocalClient(args.host, args.port, timeout=args.timeout, retries=args.retries, equip_no=args.equip) as c:
+        with DirectConnectClient(args.host, args.port, timeout=args.timeout, retries=args.retries, equip_no=args.equip) as c:
             if args.equip is None:
                 c.login()
 
@@ -744,7 +744,7 @@ def _cmd_control(args: argparse.Namespace) -> int:
         return 2
 
 
-def _run_once(c: LocalClient, args: argparse.Namespace) -> dict:
+def _run_once(c: DirectConnectClient, args: argparse.Namespace) -> dict:
     if args.command == "call":
         if args.cmd_type is None:
             raise ValueError("'call' needs a CMD_TYPE")
@@ -760,7 +760,7 @@ def _run_once(c: LocalClient, args: argparse.Namespace) -> dict:
     method = getattr(c, args.command, None)
     if method is not None:
         return method()
-    # Auto-wired catalog read with no hand-written LocalClient method.
+    # Auto-wired catalog read with no hand-written DirectConnectClient method.
     return c.call(cmd)
 
 
@@ -791,7 +791,7 @@ def _cmd_probe(args: argparse.Namespace) -> int:
         codes = _probe.gap_codes(args.start, args.end, include_known=args.include_known)
 
     try:
-        with LocalClient(args.host, args.port, timeout=args.timeout,
+        with DirectConnectClient(args.host, args.port, timeout=args.timeout,
                          retries=args.retries, equip_no=args.equip) as c:
             if args.equip is None:
                 c.login()
@@ -910,7 +910,7 @@ def _cmd_tou(args: argparse.Namespace) -> int:
         print("error: --host/-i is required", file=sys.stderr)
         return 2
     try:
-        with LocalClient(args.host, args.port, timeout=args.timeout,
+        with DirectConnectClient(args.host, args.port, timeout=args.timeout,
                          retries=args.retries, equip_no=args.equip) as c:
             if args.equip is None:
                 c.login()
@@ -1001,7 +1001,7 @@ def _cmd_energy_rollup(args: argparse.Namespace) -> int:
             print(mark, end="", flush=True, file=sys.stderr)
 
     try:
-        with LocalClient(args.host, args.port, timeout=args.timeout,
+        with DirectConnectClient(args.host, args.port, timeout=args.timeout,
                          retries=args.retries, equip_no=args.equip) as c:
             if args.equip is None:
                 c.login()
@@ -1034,7 +1034,7 @@ def _cmd_energy_rollup(args: argparse.Namespace) -> int:
         print(row)
     sys.stdout.flush()
     print(f"\nkWh. Tier columns split each channel by TOU tariff "
-          f"(see 'franklinwh-local -i <ip> tou').", file=sys.stderr)
+          f"(see 'franklinwh-direct-connect -i <ip> tou').", file=sys.stderr)
     if not roll.complete:
         print(f"{len(roll.days_missing)} day(s) had no stored history — the aGate "
               f"keeps a rolling window of roughly 105 days.", file=sys.stderr)
@@ -1071,7 +1071,7 @@ def _cmd_battery(args: argparse.Namespace) -> int:
     started = _t.time()
     shown = 0
     try:
-        with LocalClient(args.host, args.port, timeout=args.timeout,
+        with DirectConnectClient(args.host, args.port, timeout=args.timeout,
                          retries=args.retries, equip_no=args.equip) as c:
             if args.equip is None:
                 c.login()
@@ -1140,7 +1140,7 @@ def _cmd_live(args: argparse.Namespace) -> int:
         print("error: --host is required for live commands", file=sys.stderr)
         return 2
     try:
-        with LocalClient(args.host, args.port, timeout=args.timeout, retries=args.retries, equip_no=args.equip) as c:
+        with DirectConnectClient(args.host, args.port, timeout=args.timeout, retries=args.retries, equip_no=args.equip) as c:
             if args.equip is None:
                 c.login()
 
@@ -1170,8 +1170,8 @@ def _cmd_live(args: argparse.Namespace) -> int:
         return 2
     except (OSError, TransportError, TimeoutError) as e:
         print(f"error: {e}", file=sys.stderr)
-        print(f"  hint: is the aGate reachable? try 'franklinwh-local health --host "
-              f"{args.host}' or re-discover with 'franklinwh-local scan <subnet>' "
+        print(f"  hint: is the aGate reachable? try 'franklinwh-direct-connect health --host "
+              f"{args.host}' or re-discover with 'franklinwh-direct-connect scan <subnet>' "
               f"(it may have rebooted onto a new IP).", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
@@ -1227,8 +1227,8 @@ def _commands_epilog() -> str:
         out.append(f"  {fam:<{label_w}}{body[0]}")
         out.extend(" " * (2 + label_w) + line for line in body[1:])
     out.append("")
-    out.append("Run 'franklinwh-local catalog' for cmdType codes, cloud equivalents and")
-    out.append("descriptions, or 'franklinwh-local <command> --help' for one command.")
+    out.append("Run 'franklinwh-direct-connect catalog' for cmdType codes, cloud equivalents and")
+    out.append("descriptions, or 'franklinwh-direct-connect <command> --help' for one command.")
     return "\n".join(out)
 
 
@@ -1244,7 +1244,7 @@ class _FriendlyParser(argparse.ArgumentParser):
         if m is None:
             super().error(message)
         bad = m.group(1)
-        print(f"error: '{bad}' is not a franklinwh-local command.\n", file=sys.stderr)
+        print(f"error: '{bad}' is not a franklinwh-direct-connect command.\n", file=sys.stderr)
 
         choices = sorted(
             c for act in self._subparsers._group_actions for c in act.choices
@@ -1253,7 +1253,7 @@ class _FriendlyParser(argparse.ArgumentParser):
         if near:
             print("did you mean:", file=sys.stderr)
             for n in near:
-                print(f"  franklinwh-local {n}", file=sys.stderr)
+                print(f"  franklinwh-direct-connect {n}", file=sys.stderr)
             print(file=sys.stderr)
 
         if bad.isdigit():
@@ -1261,17 +1261,17 @@ class _FriendlyParser(argparse.ArgumentParser):
             info = catalog.CATALOG.get(code)
             named = f" ({info.name})" if info else ""
             print(f"'{bad}' looks like a cmdType{named} — call it directly:\n"
-                  f"  franklinwh-local -i <ip> call {bad}\n", file=sys.stderr)
+                  f"  franklinwh-direct-connect -i <ip> call {bad}\n", file=sys.stderr)
 
-        print("Run 'franklinwh-local --help' for the command list, or\n"
-              "    'franklinwh-local catalog' to browse cmdTypes.", file=sys.stderr)
+        print("Run 'franklinwh-direct-connect --help' for the command list, or\n"
+              "    'franklinwh-direct-connect catalog' to browse cmdTypes.", file=sys.stderr)
         raise SystemExit(2)
 
 
 def build_parser() -> argparse.ArgumentParser:
     # Take the name the user actually invoked, so usage/--version read correctly
     # under either entry point (franklinwh-direct-connect or the deprecated
-    # franklinwh-local) and under `python -m`.
+    # franklinwh-direct-connect) and under `python -m`.
     prog = _os.path.basename(_sys.argv[0]) or "franklinwh-direct-connect"
     if prog in ("__main__.py", "-c", "python", "python3"):
         prog = "franklinwh-direct-connect"
@@ -1312,7 +1312,7 @@ def build_parser() -> argparse.ArgumentParser:
     px.add_argument("--once", action="store_true", help="serve a single connection then exit")
     px.add_argument("--record", metavar="FILE",
                     help="also write a pcap of the conversation (Wireshark-openable, "
-                         "re-decodable with `franklinwh-local decode/analyze`)")
+                         "re-decodable with `franklinwh-direct-connect decode/analyze`)")
     px.set_defaults(func=_cmd_proxy)
 
     c = sub.add_parser("catalog", help="list known cmdType codes",
@@ -1326,18 +1326,18 @@ def build_parser() -> argparse.ArgumentParser:
     _SCAN_EXAMPLES = (
         "\nexamples:\n"
         "  # Quickest — auto-target the FranklinWH hotspot gateway (join AP_<serial> first):\n"
-        "  franklinwh-local scan gateway\n\n"
+        "  franklinwh-direct-connect scan gateway\n\n"
         "  # Scan a whole subnet (your home LAN or the hotspot /24):\n"
-        "  franklinwh-local scan 192.0.2.0/24\n"
-        "  franklinwh-local scan 10.100.1.0/24\n\n"
+        "  franklinwh-direct-connect scan 192.0.2.0/24\n"
+        "  franklinwh-direct-connect scan 10.100.1.0/24\n\n"
         "  # Scan a specific host:\n"
-        "  franklinwh-local scan 192.0.2.110\n\n"
+        "  franklinwh-direct-connect scan 192.0.2.110\n\n"
         "  # Scan an IP range:\n"
-        "  franklinwh-local scan 192.0.2.1-192.0.2.50\n\n"
+        "  franklinwh-direct-connect scan 192.0.2.1-192.0.2.50\n\n"
         "  # Comma-separated mix:\n"
-        "  franklinwh-local scan 192.0.2.110,10.100.1.1\n\n"
+        "  franklinwh-direct-connect scan 192.0.2.110,10.100.1.1\n\n"
         "  # Larger subnet — reduce workers and increase timeout for reliability:\n"
-        "  franklinwh-local scan 192.0.2.0/24 --timeout 1.0 --workers 32\n"
+        "  franklinwh-direct-connect scan 192.0.2.0/24 --timeout 1.0 --workers 32\n"
     )
     sc = sub.add_parser(
         "scan",
@@ -1395,10 +1395,10 @@ def build_parser() -> argparse.ArgumentParser:
             "Read-only: no opt=1 write is ever sent. Known codes come from the catalog,\n"
             "so the swept set never goes stale.\n\n"
             "examples:\n"
-            "  franklinwh-local -i 192.0.2.110 probe\n"
-            "  franklinwh-local -i 192.0.2.110 probe --range 1413-1699\n"
-            "  franklinwh-local -i 192.0.2.110 probe --codes 1207,1209,1821,1823,1825\n"
-            "  franklinwh-local -i 192.0.2.110 probe --json > probe.json\n"
+            "  franklinwh-direct-connect -i 192.0.2.110 probe\n"
+            "  franklinwh-direct-connect -i 192.0.2.110 probe --range 1413-1699\n"
+            "  franklinwh-direct-connect -i 192.0.2.110 probe --codes 1207,1209,1821,1823,1825\n"
+            "  franklinwh-direct-connect -i 192.0.2.110 probe --json > probe.json\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1449,10 +1449,10 @@ def build_parser() -> argparse.ArgumentParser:
             "Retention is a rolling ~105 days, so year/total come back PARTIAL; the\n"
             "result always reports its own coverage.\n\n"
             "examples:\n"
-            "  franklinwh-local -i 192.0.2.110 energy_rollup --period week\n"
-            "  franklinwh-local -i 192.0.2.110 energy_rollup --period month "
+            "  franklinwh-direct-connect -i 192.0.2.110 energy_rollup --period week\n"
+            "  franklinwh-direct-connect -i 192.0.2.110 energy_rollup --period month "
             "--date 2026-08-15\n"
-            "  franklinwh-local -i 192.0.2.110 energy_rollup --period total --json\n"
+            "  franklinwh-direct-connect -i 192.0.2.110 energy_rollup --period total --json\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1482,9 +1482,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Ctrl-C stops at any time. On a terminal the view repaints in place; piped\n"
             "output appends, so a log keeps every sample.\n\n"
             "examples:\n"
-            "  franklinwh-local -i 192.0.2.110 battery\n"
-            "  franklinwh-local -i 192.0.2.110 battery --watch 2 --for 5m\n"
-            "  franklinwh-local -i 192.0.2.110 battery --json > bms.json\n"
+            "  franklinwh-direct-connect -i 192.0.2.110 battery\n"
+            "  franklinwh-direct-connect -i 192.0.2.110 battery --watch 2 --for 5m\n"
+            "  franklinwh-direct-connect -i 192.0.2.110 battery --json > bms.json\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

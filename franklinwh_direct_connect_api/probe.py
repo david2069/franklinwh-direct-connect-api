@@ -35,7 +35,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Sequence
 
 from . import catalog
-from .client import LocalClient
+from .client import DirectConnectClient
 from .transport import TransportError
 
 #: Keys every reply carries; data beyond these is a real payload.
@@ -232,7 +232,7 @@ def expand_payloads(templates: Sequence[dict], serials: Sequence[str]) -> list[d
     return out
 
 
-def discover_serials(client: LocalClient) -> list[str]:
+def discover_serials(client: DirectConnectClient) -> list[str]:
     """aPower/FHP serials to use as ``fhpSn`` selectors.
 
     Sourced from 1831 ``battery_modules`` (devMap[].devSN) and the 1101 login
@@ -276,12 +276,12 @@ def gap_codes(start: int = 1101, end: int = 1909, *, include_known: bool = False
 
 
 def probe_codes(
-    client: LocalClient,
+    client: DirectConnectClient,
     codes: Iterable[int],
     payloads: Sequence[dict],
     *,
     stop_on_hit: bool = True,
-    reconnect: Callable[[], LocalClient] | None = None,
+    reconnect: Callable[[], DirectConnectClient] | None = None,
     on_result: Callable[[ProbeResult], None] | None = None,
 ) -> list[ProbeResult]:
     """Probe each code with each payload shape.

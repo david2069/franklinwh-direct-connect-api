@@ -1,7 +1,7 @@
 """
 High-level client for the FranklinWH aGate local broker protocol.
 
-Wraps :class:`~franklinwh_local.transport.LocalTransport` with friendly,
+Wraps :class:`~franklinwh_direct_connect_api.transport.DirectConnectTransport` with friendly,
 named methods that return the decoded ``dataArea`` dict of each response.
 """
 
@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from .catalog import CATALOG, Cmd
-from .transport import DEFAULT_RETRIES, DEFAULT_TIMEOUT, LocalTransport
+from .transport import DEFAULT_RETRIES, DEFAULT_TIMEOUT, DirectConnectTransport
 
 # Short mode aliases shared with the sibling CLIs (franklinwh-modbus / -cloud).
 # Each alias key maps to a canonical needle (used for substring fallback) AND to a
@@ -45,22 +45,22 @@ def _validate_hhmm(value: str) -> str:
     return f"{h:02d}:{m:02d}"
 
 
-class LocalClient:
+class DirectConnectClient:
     """
     Connect to an aGate broker and issue named commands.
 
-    >>> with LocalClient("10.100.1.1") as c:
+    >>> with DirectConnectClient("10.100.1.1") as c:
     ...     c.login()
     ...     print(c.power_flow()["soc"])
     """
 
     def __init__(self, host: str, port: int = 9000, *, timeout: float = DEFAULT_TIMEOUT,
                  retries: int = DEFAULT_RETRIES, equip_no: str | None = None):
-        self.transport = LocalTransport(host, port, timeout=timeout, retries=retries)
+        self.transport = DirectConnectTransport(host, port, timeout=timeout, retries=retries)
         self._equip = equip_no
 
     # -- lifecycle -----------------------------------------------------------
-    def __enter__(self) -> "LocalClient":
+    def __enter__(self) -> "DirectConnectClient":
         self.transport.connect()
         return self
 
@@ -669,3 +669,8 @@ class LocalClient:
             return {"dropped": False, **reply}
         except (TransportError, TimeoutError, OSError) as e:
             return {"dropped": True, "detail": str(e)}
+
+
+#: Pre-0.4.0 name. Same object, so ``isinstance`` and subclassing are unaffected.
+#: Scheduled for removal in 0.5.0 together with the ``franklinwh_local`` alias package.
+LocalClient = DirectConnectClient

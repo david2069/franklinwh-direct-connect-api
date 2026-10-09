@@ -86,7 +86,7 @@ class Emulator:
         # Request-cmdType -> callable(request dataArea) -> reply dataArea | None.
         # Returning None sends no reply at all, which is how a real aGate behaves
         # for a cmdType it does not implement (or for the wrong payload shape).
-        # Used to exercise payload-sensitive reads; see franklinwh_local.probe.
+        # Used to exercise payload-sensitive reads; see franklinwh_direct_connect_api.probe.
         self.extra = dict(extra or {})
         self._sock: socket.socket | None = None
         self._thread: threading.Thread | None = None
