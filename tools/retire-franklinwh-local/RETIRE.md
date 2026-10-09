@@ -1,6 +1,15 @@
 # Retiring the `franklinwh-local` distribution on PyPI
 
-Run these yourself — they need your PyPI token. **Order matters.**
+**Order matters.**
+
+> **No PyPI token is needed for the library.** `.github/workflows/release.yml` publishes on
+> any `v*` tag using PyPI **trusted publishing** (OIDC). That is how 0.3.0 was published —
+> the `v0.3.0` tag ran the Release workflow and its "Publish to PyPI" job succeeded. So
+> **pushing the tag IS the release**; do not also run `twine upload`, or the tag job will
+> fail on a version that already exists.
+>
+> The **pointer** package is a different PyPI project with no workflow of its own, so that
+> one does need a token (step 2).
 
 ## Background
 
@@ -24,27 +33,39 @@ So: **never delete.** Pointer first, then yank.
 
 ## Step 1 — publish the library 0.4.0
 
-Merge the rename PR, then from the repo root:
+Merge the rename PR first, so the published version matches `main` — PyPI versions can
+never be re-uploaded, so a mismatch is not fixable afterwards.
+
+Then tag. **The tag push publishes**, via trusted publishing:
 
 ```bash
-rm -rf dist
-.venv/bin/python -m build
-.venv/bin/python -m twine check dist/*
-.venv/bin/python -m twine upload dist/*
-```
-
-This also refreshes the PyPI page's URLs, which still point at the pre-rename repo.
-
-Then tag it:
-
-```bash
+git checkout main && git pull
 git tag -a v0.4.0 -m "0.4.0 — rename import package and CLI to Direct Connect"
 git push origin v0.4.0
 ```
 
+Watch it land:
+
+```bash
+gh run watch -R david2069/franklinwh-direct-connect-api --exit-status
+```
+
+This also refreshes the PyPI page's URLs, which still point at the pre-rename repo — the
+main reason to republish at all.
+
 ## Step 2 — publish the pointer
 
 **Only after 0.4.0 is live**, otherwise the pointer's dependency cannot resolve.
+
+This one is a manual upload: it is a separate PyPI project with no release workflow, so it
+needs an API token. Create one at **pypi.org → Account settings → API tokens → Add API
+token**, scoped to the `franklinwh-local` project, then either put it in `~/.pypirc` or
+export it:
+
+```bash
+export TWINE_USERNAME=__token__
+export TWINE_PASSWORD=pypi-...        # the token, including the pypi- prefix
+```
 
 ```bash
 cd tools/retire-franklinwh-local

@@ -40,7 +40,7 @@ from .catalog import (
     response_for,
     run_status_desc,
 )
-from .client import LocalClient
+from .client import DirectConnectClient
 from .protocol import (
     Frame,
     FrameStream,
@@ -50,18 +50,19 @@ from .protocol import (
     encode_frame,
     iter_pcap_frames,
 )
-from .transport import LocalTransport, TransportError
+from .transport import DirectConnectTransport, TransportError
 from .discover import HostResult, expand_targets, scan
 from .emulator import Emulator
 from .proxy import log_frame, serve as proxy_serve
 
 __version__ = "0.4.0"
 
-#: Canonical names. ``LocalClient``/``LocalTransport`` predate the rename to
-#: "Direct Connect" (FranklinWH's own term for this protocol) and remain as
-#: aliases — same objects, so ``isinstance`` and subclassing are unaffected.
-DirectConnectClient = LocalClient
-DirectConnectTransport = LocalTransport
+#: ``LocalClient``/``LocalTransport`` predate the rename to "Direct Connect"
+#: (FranklinWH's own term for this protocol) and remain as aliases of the
+#: canonical classes — same objects, so ``isinstance`` and subclassing are
+#: unaffected. Removal in 0.5.0, with the ``franklinwh_local`` alias package.
+LocalClient = DirectConnectClient
+LocalTransport = DirectConnectTransport
 
 __all__ = [
     "Cmd",

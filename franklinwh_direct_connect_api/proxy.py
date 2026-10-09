@@ -11,7 +11,7 @@ relayed first, then decoded for the log. Point the app at this proxy instead of
 the aGate (via ARP-spoof + DNAT, a host route, or anything that redirects
 ``:9000``), and drive the app while watching the output.
 
-    from franklinwh_local.proxy import serve, log_frame
+    from franklinwh_direct_connect_api.proxy import serve, log_frame
     serve("0.0.0.0", 9000, "192.0.2.110", 9000, on_frame=log_frame)
 
 A direction label is passed to ``on_frame``: ``"app->aGate"`` (requests, usually
@@ -41,7 +41,7 @@ class PcapWriter:
 
     Wraps the real payload bytes in synthetic Ethernet/IPv4/TCP framing (RFC 5737
     addresses), so the file opens in Wireshark and re-decodes with
-    :func:`franklinwh_local.protocol.iter_pcap_frames`. It is a faithful record of
+    :func:`franklinwh_direct_connect_api.protocol.iter_pcap_frames`. It is a faithful record of
     the application-layer byte stream (which is all the decoder needs), not a
     wire-exact packet capture. Thread-safe: both relay directions write to it.
     """

@@ -11,7 +11,7 @@ Connection" AP it broadcasts, e.g. SSID ``AP_<serial-suffix>``). The FranklinWH
 mobile app joins that hotspot and connects to the gateway's AP-side address
 (``10.100.1.1`` in captured traffic) on port 9000.
 
-``LocalTransport`` plays the **mobile-app client** role: join the FranklinWH
+``DirectConnectTransport`` plays the **mobile-app client** role: join the FranklinWH
 hotspot, then point it at the hotspot gateway IP. (In the capture the client
 ``10.100.1.81`` is the phone and ``10.100.1.1:9000`` is the aGate.)
 """
@@ -40,13 +40,13 @@ class TransportError(RuntimeError):
     pass
 
 
-class LocalTransport:
+class DirectConnectTransport:
     """
     Synchronous framed TCP client.
 
     Example
     -------
-    >>> with LocalTransport("10.100.1.1") as t:
+    >>> with DirectConnectTransport("10.100.1.1") as t:
     ...     manifest = t.login()                       # 1101 -> 1102
     ...     equip = manifest.data_area["IBG_SN"]
     ...     flow = t.request(1301, equip, {"opt": 0})  # -> 1302
@@ -105,7 +105,7 @@ class LocalTransport:
             finally:
                 self._sock = None
 
-    def __enter__(self) -> "LocalTransport":
+    def __enter__(self) -> "DirectConnectTransport":
         self.connect()
         return self
 
@@ -245,3 +245,7 @@ class LocalTransport:
         if isinstance(resp.data_area, dict):
             self.equip_no = resp.data_area.get("IBG_SN") or resp.equip_no
         return resp
+
+
+#: Pre-0.4.0 name. Same object; removal in 0.5.0.
+LocalTransport = DirectConnectTransport
