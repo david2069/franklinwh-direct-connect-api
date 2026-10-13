@@ -60,12 +60,57 @@ class DirectConnectClient:
         self._equip = equip_no
 
     # -- lifecycle -----------------------------------------------------------
+    #
+    # Two usages, both supported:
+    #
+    #   with DirectConnectClient(host) as c:      # short-lived; closes on exit
+    #       c.login(); c.power_flow()
+    #
+    #   c = DirectConnectClient(host)             # HELD session; reused across calls
+    #   c.ensure_session()                        # connect + login, idempotent
+    #   ...                                       # many calls, one socket, one login
+    #   c.close()                                 # when you are done with it
+    #
+    # The transport has always supported the second — `connect()` is idempotent, and
+    # a transient failure reconnects and re-logs-in inside `request()`. What was
+    # missing was a way to say "open it and keep it" without `with` closing it, and a
+    # lock making a held client safe to share. Both are now present.
     def __enter__(self) -> "DirectConnectClient":
         self.transport.connect()
         return self
 
     def __exit__(self, *exc) -> None:
         self.transport.close()
+
+    def connect(self) -> None:
+        """Open the socket if it is not already open. Idempotent."""
+        self.transport.connect()
+
+    def close(self) -> None:
+        """Close the socket. Idempotent; the client stays usable and will reconnect."""
+        self.transport.close()
+
+    @property
+    def connected(self) -> bool:
+        return self.transport._sock is not None
+
+    def ensure_session(self) -> None:
+        """Connect and log in if needed. Idempotent, and safe to call before every
+        request on a held client — it costs nothing once the session is up.
+
+        Logging in is what makes a session a session: `equip_no` comes from the 1101
+        manifest, and the transport remembers the login so a reconnect restores it.
+        """
+        self.transport.connect()
+        if not self.transport._logged_in:
+            self.login()
+
+    @property
+    def connects(self) -> int:
+        """Real TCP connects this client has made. 1 after a healthy held session has
+        run for hours; climbing means the session is not being reused, which is the
+        thing persistence exists to prevent and the only way to notice it."""
+        return self.transport.connects
 
     @property
     def equip_no(self) -> str:

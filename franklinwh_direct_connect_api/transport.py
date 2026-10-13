@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import socket
+import threading
 import time
 from typing import Any
 
@@ -67,11 +68,25 @@ class DirectConnectTransport:
         self.equip_no: str | None = None
         self._logged_in = False   # re-login after a transient reconnect
         self._login_data_area: Any | None = None
+        #: Serialises a whole request (send AND the matching receive) so a transport
+        #: can be HELD and shared. The hazard is interleaving, not either half alone:
+        #: two concurrent callers on one socket would mis-pair responses through the
+        #: shared frame stream, `_pending` and `_snno`. Re-entrant because `request`
+        #: re-enters via `_reconnect` -> `_do_login`.
+        #:
+        #: Serialising is correct rather than a limitation: the device is the scarce
+        #: resource, so queueing two callers on one socket is the right answer and
+        #: opening a second socket to avoid queueing is the failure mode.
+        self._lock = threading.RLock()
+        #: How many real TCP connects this transport has made. Without it, "the
+        #: session is being reused" is unverifiable.
+        self.connects = 0
 
     # -- connection lifecycle ------------------------------------------------
     def connect(self) -> None:
         if self._sock is not None:
             return
+        self.connects += 1
         last: Exception | None = None
         for attempt in range(self.retries + 1):
             try:
@@ -187,6 +202,11 @@ class DirectConnectTransport:
         if data_area is None:
             data_area = {"opt": 0}
         want = catalog.response_for(cmd_type)
+        with self._lock:
+            return self._request_locked(cmd_type, equip_no, data_area, want)
+
+    def _request_locked(self, cmd_type: int, equip_no: str, data_area: Any,
+                        want: int | None) -> Frame:
         last: Exception | None = None
         for attempt in range(self.retries + 1):
             try:
@@ -215,6 +235,10 @@ class DirectConnectTransport:
         Retries the handshake on transient failures (login is the entry point for
         every command, so it must be as resilient as ``request``).
         """
+        with self._lock:
+            return self._login_locked(data_area)
+
+    def _login_locked(self, data_area: Any | None) -> Frame:
         self._login_data_area = data_area
         last: Exception | None = None
         for attempt in range(self.retries + 1):
