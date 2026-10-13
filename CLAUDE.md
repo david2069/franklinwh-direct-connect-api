@@ -9,8 +9,9 @@ hardware reports is a claim, and it needs a source:
    SunSpec model definitions. These are in the repos and on the GitHub Pages sites.
 2. **The API Cookbooks** — `franklinwh-cloud`, `franklinwh-modbus`,
    `franklinwh-direct-connect-api`.
-3. **A live read** — `Settings → Integrations → Mapping` has a **Probe**: give it a field
-   name and it finds the frame, returns the value, and shows the exact request sent.
+3. **A live read** — the `franklinwh-direct-connect` CLI or a read-only script against
+   the aGate, recorded with the time, the firmware version and the exact frame sent.
+   Emulator output is not evidence of what a field means on real hardware.
 4. **The code**, read — not inferred from a name, a neighbouring field, or a comment.
 
 **Cite the source.** "1707 `ibgRunStatus` reads 9 during VPP (measured, 2026-10-13)" is a
@@ -46,6 +47,35 @@ A passing unit test is not evidence that a device behaves as assumed.
 
 **Confirm a measurement rather than assume a build.** "It built" is not "it works" —
 check the database, the socket table, or the live endpoint, and report the number.
+
+## Defect tracking and change management
+
+The detailed policy lives in `franklinwh-modbus` at
+`.agents/policies/change_management.md` (effective 2026-03-18) and is the source; this is
+its Direct Connect reading.
+
+**Queue first; fix in batches.** A defect or request is written down in
+`BACKLOG.md` before it is worked on. Only an S1 is fixed the moment it is reported. If asked to fix a non-S1 immediately, say it is queued,
+offer to group it with the related items, and ask whether it is in fact a blocker.
+
+| Severity | Definition | Response |
+|---|---|---|
+| **S1 — Blocker** | System down, data loss, security hole, hardware safety, cannot proceed | Fix now, with a brief plan first |
+| **S2 — High** | Broken but a workaround exists | Queue → next planned batch |
+| **S3 — Medium** | Cosmetic, UX, non-functional | Queue → group by area |
+| **S4 — Low** | Nice-to-have, cleanup, future work | Queue → backlog review |
+
+**Group → plan → execute → verify.** Group queued items by functional area (transport,
+client commands, frame codecs, the emulator, the CLI, docs) before
+touching code. Each batch gets a written plan first, one verification pass at the end, and
+one version bump — not one per fix.
+
+**Do not chain fixes.** If a fix causes a new defect, stop and queue the new defect; do not
+keep patching. If a fix in a batch breaks a test, review the whole batch, not just the
+failing test. When a change has cascaded, go back to the last good state rather than piling
+on more fixes.
+
+**State the regression risk** before a change: low, medium or high, and what it touches.
 
 ## Say so when something is not done
 
