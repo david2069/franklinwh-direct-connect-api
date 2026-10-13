@@ -44,10 +44,24 @@ transport carries shared mutable state across a call:
 * `_logged_in` / `_login_data_area`
 
 Today that is harmless: every caller constructs its own client, so there is one user per
-transport. **The moment a client is held and shared — exactly what persistence invites —
-two concurrent `request()` calls interleave sends on one socket and mis-pair responses
-through the shared stream.** It would fail intermittently and under load, which is the
-worst failure to debug and the easiest to ship.
+transport. The moment a client is held and shared — exactly what persistence invites —
+two concurrent `request()` calls interleave on one socket.
+
+**Measured, 2026-10-13, 6 threads x 12 calls on one held client against the emulator:**
+
+| | connects |
+| --- | ---: |
+| with the lock | **1** |
+| without | **5** |
+
+**The failure mode is not corrupted data**, which is what this section first assumed.
+Unlocked, each caller's frames time out, `request()` reconnects and retries, and the
+results still come back correct — paid for in reconnect storms and latency. The retry
+machinery masks the race.
+
+That makes it *worse* to find, not better: the obvious tests (no exceptions, well-formed
+responses) pass either way. **The connect count is the only signal that discriminates**,
+and nothing was counting connects until this work added a counter.
 
 **Nothing in the docs mentions threads at all.** A consumer has no way to know.
 
