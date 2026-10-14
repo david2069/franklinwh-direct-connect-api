@@ -155,8 +155,8 @@ def test_derive_seed_is_per_serial_not_hardcoded():
     # The old bug: every non-login serial got 0x3F. Different serials must differ,
     # else we'd silently mis-encode requests to other gateways.
     others = {
-        "10060006B13G35280102": 0x40,
-        "20070007C24H46391203": 0x4E,
+        "10060006A00X00000001": 0x38,  # pii: allow — documentation placeholder
+        "10050013A00X00000002": 0x36,  # pii: allow — documentation placeholder
         "FAKEAPOWERP6KMFY7ALA": 0xD8,
     }
     for sn, expected in others.items():
@@ -168,7 +168,7 @@ def test_derive_seed_is_per_serial_not_hardcoded():
 def test_frame_roundtrips_for_a_foreign_serial():
     # A frame built for someone else's gateway must encode with that serial's seed and
     # decode back cleanly (detect_seed recovers it) — proving multi-gateway send works.
-    sn = "10060006B13G35280102"
+    sn = "10060006A00X00000001"  # pii: allow — documentation placeholder
     wire = protocol.encode_frame(1301, sn, {"opt": 0}, snno=7)
     fr = protocol.decode_frame(wire)
     assert fr.equip_no == sn
