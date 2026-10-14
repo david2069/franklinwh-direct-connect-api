@@ -6,6 +6,23 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+> Entries below start on 2026-10-13, when this section was first kept current. Earlier
+> releases are recorded under their own headings; nothing before that point is
+> reconstructed here.
+
+### Added
+
+- **Held sessions.** `connect()`, `close()`, `connected`, `ensure_session()` and a `connects`
+  counter on `DirectConnectClient`. Every call used to open a TCP connection *and* perform a
+  login before closing it again; a caller can now hold one session across many commands.
+  Existing `with`-block usage is unchanged. (#6)
+
+### Changed
+
+- **Requests are serialised.** The transport takes an `RLock` around a request and around
+  login, so two threads sharing a client can no longer interleave frames on one socket.
+  Measured on a 5-thread run: 1 connection with the lock, 5 without. (#6)
+
 ## [0.4.0] — 2026-10-08
 
 Renamed the import package and CLI to match the distribution name, so the project has
