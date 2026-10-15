@@ -1,7 +1,47 @@
 # Backlog / Defect Queue
 
-Tracked defects and planned work for `franklinwh-local`. Newest first.
+Tracked defects and planned work for `franklinwh-direct-connect-api`. Newest first.
 Status: `queued` → `planned` → `in-progress` → `done`.
+
+---
+
+## DEF-CLI-HELP-SUPPRESS — `--help` prints `==SUPPRESS==` for every per-cmdType subcommand
+
+**Severity:** S3 (cosmetic) · **Status:** QUEUED · **Filed:** 2026-10-15 · **Area:** CLI
+
+`franklinwh-direct-connect --help` lists the catalog-derived subcommands with the
+literal text `==SUPPRESS==` where the entry should be hidden (67 of the 70 — `mode`,
+`offgrid` and `der_comms` carry real help):
+
+```
+    power_flow          ==SUPPRESS==
+    energy_history      ==SUPPRESS==
+```
+
+`cli.py:1592` passes `help=argparse.SUPPRESS` to `add_parser()`, which does not hide the
+entry — it renders the sentinel's value. Measured 2026-10-15 on Python 3.14.3, 3.12.13
+and 3.9.6: 67 occurrences on each, so it is not a version-specific regression.
+
+The grouped epilog below the list is the intended index, so nothing is unusable; the
+positional list is just noise. Likely fix: don't register the help kwarg at all for those
+parsers (and assert on `--help` output in `tests/test_cli_surface.py`). Documented as a
+known artefact in `docs/USAGE.md` → Troubleshooting until fixed.
+
+---
+
+## DEF-BMS-SPREAD-FLOAT — cell spread prints full float noise
+
+**Severity:** S3 (cosmetic) · **Status:** QUEUED · **Filed:** 2026-10-15 · **Area:** CLI (`bms.py`)
+
+The `battery` view prints an unrounded subtraction:
+
+```
+               Spread: 6.400000000000091 mV
+```
+
+Measured 2026-10-15 against the in-process emulator (synthetic cell voltages are floats;
+the reference aGate reported integers in mV, which is why this was not seen earlier).
+Round to the same precision as the Highest/Lowest lines it sits under.
 
 ---
 

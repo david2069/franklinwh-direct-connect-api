@@ -71,6 +71,7 @@ nav:
   - Cloud API Mapping: CLOUD_MAPPING.md
   - API Reference: API.md
   - Compare the two Local API libs: LOCAL_API_COMPARISON.md
+  - Design note - persistent sessions: SESSION_DESIGN.md
 
 extra:
   social:

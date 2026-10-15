@@ -28,7 +28,9 @@ same `equipNo`. The local codes are a different numbering scheme — the cloud
 fields* align across both channels. The most useful one is `run_status` (below):
 the local `1301` `run_status` and the cloud `runtimeData.run_status` carry the
 **same integer enum**, so an integration can normalise to one status model
-regardless of transport.
+regardless of transport — with one caveat: being in the enum does not mean the local
+channel ever emits that value. See the VPP warning under
+[`run_status` vs `mode`](#power_flow-1301-run_status-vs-mode-dont-confuse-them).
 
 ## Frame format
 
@@ -61,12 +63,27 @@ encrypt: c[i] = (p[i] + seed + i) mod 256
 decrypt: p[i] = (c[i] - seed - i) mod 256
 ```
 
-- `seed = 0x3F` for normal frames (20-character serial).
-- `seed = 0xA5` for the `1101` login (8-character `"00000000"` serial).
+**The seed is derived from the serial** in the `equipNo` header — it is not a constant
+(`protocol.derive_seed`):
 
-The first plaintext byte is always `"` (`0x22`), so decoding is
-**self-synchronizing**: `seed = (firstCipherByte - 0x22) mod 256`. The library
-detects the seed automatically on decode and selects it by `equipNo` on encode.
+```
+seed = (sum(utf8_bytes(equipNo)) + len(equipNo) + 29) mod 256
+```
+
+- `0xA5` is what that yields for the `1101` login's 8-character `"00000000"`.
+- `0x3F` is what it yields for *one particular* 20-character gateway serial — the
+  reference capture's. A serial that hashes differently has a different seed, so
+  hardcoding `0x3F` mis-encodes every request **sent** to such a gateway; this library
+  did that until it adopted the formula.
+
+The formula is `voidstarr/franklinwh_local`'s finding (MIT), recovered from the
+FranklinWH Android app's Dart AOT and confirmed here in that it reproduces both seeds
+that had previously only been *observed* on the wire — verified offline:
+`derive_seed("00000000") == 0xA5`.
+
+The first plaintext byte is always `"` (`0x22`), so **decoding** never needs the formula
+and is self-synchronizing: `seed = (firstCipherByte - 0x22) mod 256`. The library detects
+the seed that way on decode, and derives it from `equipNo` on encode.
 
 ### Worked example
 
@@ -83,6 +100,14 @@ p[1] = 0xB4 - 0x3F - 1 = 0x74 = 't'   -> "type":...
 
 Odd code is the request; the reply is the next even code.
 
+The table below is a **highlights subset**. The full catalog is **70 cmdTypes** and lives
+in [`catalog.py`](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/franklinwh_direct_connect_api/catalog.py);
+print it, with per-command descriptions and cloud equivalents, with
+`franklinwh-direct-connect catalog` (add `--json` for the machine-readable form). Omitted
+here are the 25 `grid_*` compliance blocks, the per-device BMS reads and the energy
+history — all of which are in that listing and in
+[CLOUD_MAPPING.md](CLOUD_MAPPING.md).
+
 | Request → Reply | Name | dataArea highlights |
 |---|---|---|
 | 1101 → 1102 | login | req `{opt, minProtocolVer}`; reply: IBG_SN, FHP_SN, BMS_SN, PE_SN, all `*_VER` |
@@ -92,7 +117,7 @@ Odd code is the request; the reply is the next even code.
 | 1117 → 1118 | network_interfaces | wifi/eth0 DHCP, MAC, IP, DNS, gateway |
 | 1119 → 1120 | network_switches | eth0/eth1/wifi/4G on-off |
 | 1201 → 1202 | time_location | time, timezone, DST, latitude, longitude, postcode |
-| 1205 → 1206 | der_comms | installer "**Enable Modbus SunSpec**" (sunsMdEn, ip, port 502) + IEEE 2030.5/SEP2 (dcap2030_5, lfdi, sfdi, pin) — **read-only here** (write withheld, see below) |
+| 1205 → 1206 | der_comms | installer "**Enable Modbus SunSpec**" (sunsMdEn, ip, port 502) + IEEE 2030.5/SEP2 (dcap2030_5, lfdi, sfdi, pin) — **write** with opt=1 (full-block RMW; delayed apply, see below) |
 | 1301 → 1302 | power_flow | mode, run_status, p_uti, p_sun, p_gen, p_fhp, p_load, soc, t_amb, daily kWh |
 | 1401 → 1402 | smart_circuit_schedule | per-switch schedule/timer: swXMode/AutoEn/Freq/TimeEn/TimeSet/Time (X=1..3) |
 | 1409 → 1410 | smart_circuits | SwMerge, SwXName, SwXMode, SwXProLoad, SwXFreq, SwXTime (**write** with opt=1) |
@@ -153,11 +178,11 @@ verify at the interface/service level, polling over a short window, not once.
 > older firmware; possibly others not yet characterised). A reboot (`1721`) is
 > **destructive** and can make the aGate **fail over to 4G and not auto-reconnect to
 > WiFi** — never reboot unattended (it can strand the local API until someone is on-site).
-> See `DEF-WIFI-RECONNECT` in `BACKLOG.md`.
+> See `DEF-WIFI-RECONNECT` in [`BACKLOG.md`](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/BACKLOG.md).
 
 > **Reserved SoC `1405` is withheld** (not exposed as a command) — silently discarded
 > locally (`result:0` but not persisted); reserve is cloud-only. See below and
-> `PROTOCOL_DESIGN_REQUIREMENTS.md`.
+> [`PROTOCOL_DESIGN_REQUIREMENTS.md`](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/PROTOCOL_DESIGN_REQUIREMENTS.md).
 
 > Not everything goes local: some settings (e.g. the smart-circuit **SoC cut-off**)
 > returned "System Busy — try again later" over the broker, i.e. they still round-
@@ -216,7 +241,26 @@ so the two channels agree. Available as `franklinwh_direct_connect_api.run_statu
 | 6 | Off-Grid Charging |
 | 7 | Off-Grid Discharging |
 | 8 | Debug Mode (Franklin remote-support session) |
-| 9 | **VPP mode** (utility/aggregator dispatch active) |
+| 9 | VPP mode — **defined in the enum, but not emitted by local `1301`; see below** |
+
+!!! warning "Do not detect VPP from `run_status`"
+    The table is the **cloud** enum (`franklinwh_cloud.const.RUN_STATUS`), reproduced in
+    `catalog.RUN_STATUS` so both channels describe the same number the same way. That a
+    value is in the enum is not evidence the local channel emits it.
+
+    **Measured on the reference aGate, 2026-10-12, with a Modbus force-discharge active
+    and the mobile app showing "VPP Mode":** `1301 run_status` stayed at `2`
+    (Discharging), while `1707 ibgRunStatus` read `9` and the programme `name` went
+    empty. So on the local channel the VPP test is `ibg_run_status.ibgRunStatus == 9`
+    (with an empty `name`) — never `run_status == 9`. `run_status` keeps reporting the
+    battery's direction, which under a force is still correct.
+
+    Source: `docs/RUN_STATUS_AND_MODE.md` in the sibling `franklinwh-local-bridge`
+    repository — **a claim relayed from that repository, not re-verified in this one.**
+    One site, one firmware, one observation; and only a *Modbus*-originated force was
+    tested. Whether a cloud/aggregator-originated VPP dispatch also sets `ibgRunStatus`
+    to 9 is **unverified**. Values `3`, `4` and `8` likewise have no local sighting
+    recorded here.
 
 **`mode`** — *not* a status enum. It is an arbitrary **programme / schedule ID**
 (the cloud calls it `runtimeData.mode`): large numbers like `29287` for a named

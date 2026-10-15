@@ -1,6 +1,14 @@
 # Persistent sessions — design
 
-**Status: DESIGN for review. No code.** Written 2026-10-13.
+**Status: the recommendation in §3 (option B) shipped** — `DirectConnectTransport` holds
+an `RLock` across `request()` and `login()`, and `DirectConnectClient` has
+`connect()` / `close()` / `connected` / `ensure_session()` / `connects`
+(`CHANGELOG.md` → Unreleased, #6). The **§6 open questions are still unmeasured**: nobody
+has established whether the aGate closes an idle TCP/9000 session, or whether a held
+login expires server-side. Written 2026-10-13; status updated 2026-10-15.
+
+See [Held sessions and threads](USAGE.md#held-sessions-and-threads) for how to use what
+shipped; this page is the reasoning behind it.
 
 Problem brought by the bridge: every call opens a TCP connection **and performs a
 login**, then closes it. The bridge's poller does that per gateway every 30 s, and it

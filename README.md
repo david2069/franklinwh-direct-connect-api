@@ -51,19 +51,23 @@ together in one place.
 Requires **Python 3.10+**. No runtime dependencies (standard library only).
 
 ```bash
-git clone https://github.com/david2069/franklinwh-direct-connect-api
-cd franklinwh-direct-connect-api
-
 python3 -m venv .venv          # 1. create a virtualenv
 source .venv/bin/activate      # 2. activate it  (Windows: .venv\Scripts\activate)
-pip install -e .               # 3. install this checkout (editable)
+pip install franklinwh-direct-connect-api
 
-franklinwh-direct-connect --version     # 4. verify
+franklinwh-direct-connect --version     # 3. verify
 # franklinwh-direct-connect 0.4.0
 ```
 
-Add `".[test]"` instead of `"."` in step 3 if you want to run the pytest suite.
-From PyPI (no checkout needed) the install is `pip install franklinwh-direct-connect-api`.
+To work on it instead, install the checkout editable — add `[test]` for the pytest suite:
+
+```bash
+git clone https://github.com/david2069/franklinwh-direct-connect-api
+cd franklinwh-direct-connect-api
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[test]"
+pytest -m "not live"           # offline suite; "live" tests need a real aGate
+```
 
 ### How to run it
 
@@ -144,9 +148,9 @@ assert frame.verify()          # len + crc check
 Talk to a live gateway:
 
 ```python
-from franklinwh_direct_connect_api import LocalClient
+from franklinwh_direct_connect_api import DirectConnectClient
 
-with LocalClient("10.100.1.1") as c:   # the hotspot gateway IP
+with DirectConnectClient("10.100.1.1") as c:   # the hotspot gateway IP
     c.login()                  # 1101 -> 1102 (firmware manifest)
     print(c.power_flow()["soc"])
     print(c.smart_circuits())
@@ -190,7 +194,7 @@ Connect" path the FranklinWH mobile app uses. To talk to it:
 1. On the gateway/app, start **Direct Connect → Connect via aGate hotspot**.
 2. Join the WiFi network `AP_<serial-suffix>` (e.g. `AP_F24170091`).
 3. The gateway is the hotspot gateway IP (typically `10.100.1.1`). Point
-   `LocalClient` / the CLI at it, or let the scanner find it:
+   `DirectConnectClient` / the CLI at it, or let the scanner find it:
 
    ```bash
    franklinwh-direct-connect scan gateway        # auto-targets the hotspot gateway
@@ -268,8 +272,8 @@ franklinwh-direct-connect -i 192.0.2.110 offgrid --set off     # reconnect
 In Python:
 
 ```python
-from franklinwh_direct_connect_api import LocalClient
-with LocalClient("192.0.2.110") as c:
+from franklinwh_direct_connect_api import DirectConnectClient
+with DirectConnectClient("192.0.2.110") as c:
     c.login()
     c.set_mode("tou")                  # 1727 {opt:3, current_id}; alias or full name or id
 ```
@@ -345,10 +349,14 @@ encrypt: c[i] = (p[i] + seed + i) & 0xFF
 decrypt: p[i] = (c[i] - seed - i) & 0xFF
 ```
 
-There is **no key**. `seed` is `0x3F` for normal frames and `0xA5` for the
-pre-login `1101` handshake. Because the first plaintext byte is always `"`,
-decoding is self-synchronizing — the seed is recovered from the first ciphered
-byte, so any frame can be read without knowing the seed in advance.
+There is **no key**, and the `seed` is **derived from the serial** in the `equipNo`
+header — `(sum(utf8(equipNo)) + len(equipNo) + 29) mod 256`. That yields `0xA5` for the
+pre-login `1101` handshake (`"00000000"`) and `0x3F` for the reference gateway's 20-char
+serial; another serial gives another seed, so it must be derived, not hardcoded. Because
+the first plaintext byte is always `"`, *decoding* is self-synchronizing — the seed is
+recovered from the first ciphered byte, so any frame can be read without knowing the
+serial. (The formula is `voidstarr/franklinwh_local`'s finding; see
+[`docs/PROTOCOL.md`](docs/PROTOCOL.md).)
 
 Field rules: `len` is the byte length of the compact `dataArea` JSON, and `crc`
 is its CRC32 (uppercase hex). Full details and the command catalog are in
@@ -366,12 +374,20 @@ accordingly.
 ```
 franklinwh_direct_connect_api/
   protocol.py    cipher, Frame, encode/decode, FrameStream, pcap reader
-  catalog.py     cmdType enum + descriptions
-  transport.py   TCP client: connect, login, request/response
-  client.py      high-level named commands
+  catalog.py     cmdType catalog + enums (RUN_STATUS, WRITES, OPERATING_MODES)
+  transport.py   TCP client: connect, login, request/response (serialised)
+  client.py      high-level named commands (reads + the six writes)
   cli.py         command-line entry point
-tests/           pytest suite (driven by a real capture fixture)
-docs/PROTOCOL.md protocol + command catalog
+  discover.py    LAN scan for :9000 / :502
+  emulator.py    fake aGate broker, backed by synthetic.py
+  synthetic.py   deterministic per-seed synthetic site
+  energy.py      1303/1407 helpers: rollups, TOU blocks, tariff tiers
+  bms.py         per-cell battery rendering for the `battery` command
+  probe.py       read-only cmdType sweep with a payload matrix
+  proxy.py       transparent decoding relay
+franklinwh_local/  deprecated import shim (removed in 0.5.0)
+tests/           pytest suite (emulator- and capture-driven)
+docs/            the published guide (mkdocs): USAGE, PROTOCOL, API, CLOUD_MAPPING
 ```
 
 ## License

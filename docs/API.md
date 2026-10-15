@@ -51,6 +51,61 @@ Cipher, frame encode/decode, the streaming reader, and the pcap reader.
 
 ::: franklinwh_direct_connect_api.catalog.response_for
 
+::: franklinwh_direct_connect_api.catalog.run_status_desc
+
+::: franklinwh_direct_connect_api.catalog.mode_label
+
+Also exported from the top level, as plain data rather than functions:
+`WRITES` (the write table — cmdType, `opt`, fields and how each was confirmed),
+`RUN_STATUS` (see the caveat in [PROTOCOL.md](PROTOCOL.md#power_flow-1301-run_status-vs-mode-dont-confuse-them)),
+`OPERATING_MODES`, `WORK_MODE_NAMES` and `CATALOG` itself.
+
+---
+
+## Energy history, rollups and TOU
+
+Stateless helpers over `1303` / `1407` payload dicts — sampling and persistence stay with
+the caller. See [Energy history and rollups](USAGE.md#energy-history-and-rollups).
+
+::: franklinwh_direct_connect_api.energy.has_data
+
+::: franklinwh_direct_connect_api.energy.period_range
+
+::: franklinwh_direct_connect_api.energy.Rollup
+
+::: franklinwh_direct_connect_api.energy.aggregate
+
+::: franklinwh_direct_connect_api.energy.rollup
+
+::: franklinwh_direct_connect_api.energy.TouBlock
+
+::: franklinwh_direct_connect_api.energy.decode_tou
+
+::: franklinwh_direct_connect_api.energy.active_tier
+
+::: franklinwh_direct_connect_api.energy.tier_transitions
+
+---
+
+## Probing for undocumented cmdTypes
+
+Read-only sweep machinery behind `franklinwh-direct-connect probe` — see
+[Probing](USAGE.md#probing-for-undocumented-cmdtypes).
+
+::: franklinwh_direct_connect_api.probe.ProbeResult
+
+::: franklinwh_direct_connect_api.probe.default_payloads
+
+::: franklinwh_direct_connect_api.probe.expand_payloads
+
+::: franklinwh_direct_connect_api.probe.discover_serials
+
+::: franklinwh_direct_connect_api.probe.gap_codes
+
+::: franklinwh_direct_connect_api.probe.probe_codes
+
+::: franklinwh_direct_connect_api.probe.find_cell_series
+
 ---
 
 ## Discovery (LAN scan)
@@ -72,3 +127,17 @@ Cipher, frame encode/decode, the streaming reader, and the pcap reader.
 ## Emulator
 
 ::: franklinwh_direct_connect_api.emulator.Emulator
+
+The emulator synthesises responses from a deterministic site model; it is a development
+and test aid, **not** evidence of real device behaviour. See
+[Test without hardware](USAGE.md#test-without-hardware-emulator).
+
+---
+
+## Decoding proxy
+
+Exported at the top level as `proxy_serve` and `log_frame`.
+
+::: franklinwh_direct_connect_api.proxy.serve
+
+::: franklinwh_direct_connect_api.proxy.log_frame
