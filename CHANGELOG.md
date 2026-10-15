@@ -12,6 +12,19 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **The emulator answers the site clock, the install profile and the grid measurements.**
+  1201/1202 `time_location` now returns the site's real wall-clock instead of falling
+  through to the capture's date — a consumer deriving the site's UTC offset from it used to
+  get hundreds of days, which is not a timezone. 1701/1702 `install_profile` is synthesised
+  (with `fhpRatePower`/`genRatePower` left at 0, as the real firmware reports them), and
+  1708 now carries `gridVol1`/`gridVol2`/`gridLineVol`/`gridFreq`.
+
+- **One site, one timezone.** `SyntheticSite(..., tz_offset_hours=)`,
+  `Emulator(tz_offset_hours=)` and `franklinwh-direct-connect emulate --tz-offset` set the
+  site's UTC offset explicitly (fractional for the half-hour zones). Omitted, the per-seed
+  random offset is unchanged — pass it when several mocks model ONE site, which otherwise
+  disagree about what hour it is.
+
 - **Held sessions.** `connect()`, `close()`, `connected`, `ensure_session()` and a `connects`
   counter on `DirectConnectClient`. Every call used to open a TCP connection *and* perform a
   login before closing it again; a caller can now hold one session across many commands.

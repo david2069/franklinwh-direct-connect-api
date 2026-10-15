@@ -287,7 +287,7 @@ def _cmd_emulate(args: argparse.Namespace) -> int:
     return _emulator.run(
         args.bind, args.port, args.equip or _emulator.DEFAULT_EQUIP,
         seed=args.seed, serial=args.serial, dynamic=not args.static,
-        units=args.units,
+        units=args.units, tz_offset_hours=args.tz_offset,
     )
 
 
@@ -1512,6 +1512,12 @@ def build_parser() -> argparse.ArgumentParser:
                     help="override the emulated IBG_SN / equipNo")
     em.add_argument("--units", type=int, default=1,
                     help="number of aPowers to present (multi-battery mock)")
+    em.add_argument("--tz-offset", type=float, default=None, dest="tz_offset",
+                    metavar="HOURS",
+                    help="the site's UTC offset in hours (10, or 9.5 for a half-hour "
+                         "zone). Omit to let the "
+                         "seed pick one — pass it when several mocks model ONE site, so "
+                         "they agree on the time of day")
     em.add_argument("--static", action="store_true",
                     help="disable the dynamic site — answer only from canned/pcap data")
     em.set_defaults(func=_cmd_emulate)

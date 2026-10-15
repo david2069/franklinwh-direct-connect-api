@@ -201,3 +201,99 @@ def test_emulator_write_roundtrip_e2e():
             assert len(eh["rec_time"]) == 96 and eh["kwh_load"] > 0
     finally:
         emu.stop()
+
+
+# -- NEW: the site clock (1201/1202) -----------------------------------------
+def test_time_location_is_a_live_clock_not_a_fixed_date():
+    """A consumer derives the site's UTC offset from `time` minus UTC now.
+
+    The canned fallback answered with the capture's date, which makes that subtraction
+    hundreds of days — not an offset. This must track real time.
+    """
+    import datetime as dt
+
+    site = SyntheticSite(1, tz_offset_hours=10)
+    now = dt.datetime.now(dt.timezone.utc).timestamp()
+    tl = site.time_location(now)
+    local = dt.datetime.strptime(tl["time"], "%Y-%m-%d %H:%M:%S")
+    utc_now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+    derived_minutes = round((local - utc_now).total_seconds() / 60)
+    assert abs(derived_minutes - 600) <= 1          # UTC+10, to the minute
+    assert tl["timezone"] == 10
+    assert tl["timezoneStr"] == ""                  # hardware reports an offset, not a name
+
+
+def test_time_location_follows_the_requested_timezone():
+    import datetime as dt
+
+    now = dt.datetime.now(dt.timezone.utc).timestamp()
+    a = SyntheticSite(1, tz_offset_hours=-5).time_location(now)["time"]
+    b = SyntheticSite(1, tz_offset_hours=10).time_location(now)["time"]
+    ta = dt.datetime.strptime(a, "%Y-%m-%d %H:%M:%S")
+    tb = dt.datetime.strptime(b, "%Y-%m-%d %H:%M:%S")
+    assert round((tb - ta).total_seconds() / 3600) == 15
+
+
+# -- NEW: one site, one timezone ---------------------------------------------
+def test_explicit_timezone_overrides_the_seeded_one():
+    # Several mocks modelling ONE site must agree on the hour; the seeded offset is
+    # per-seed and would scatter them across the globe.
+    sites = [SyntheticSite(s, tz_offset_hours=10) for s in (1, 2, 3)]
+    assert {s.tz_offset_hours for s in sites} == {10}
+    assert len({s.serial for s in sites}) == 3        # still distinct devices
+    # Without it they diverge — that is the behaviour being overridden, not a coincidence.
+    assert len({SyntheticSite(s).tz_offset_hours for s in (1, 2, 3)}) > 1
+
+
+# -- NEW: install profile (1701/1702) ----------------------------------------
+def test_install_profile_shape_and_honest_zero_fields():
+    p = SyntheticSite(1).install_profile()
+    assert p["result"] == 0
+    for k in ("electricSupply", "airSwitchCur", "gridExportEnable", "isPcsDischgEn",
+              "isThreePhaseInstall", "gridSoftLimit", "gridHardLimit", "kwRatePower"):
+        assert k in p
+    # -1 is the device's "unlimited"; inventing a number here would read as a real limit.
+    assert p["gridSoftLimit"] == -1 and p["gridHardLimit"] == -1 and p["kwRatePower"] == -1
+    # Mirrors the reference aGate: these read 0 on real firmware (catalog 1701), so the
+    # mock must not teach a consumer to trust them.
+    assert p["fhpRatePower"] == 0 and p["genRatePower"] == 0
+
+
+def test_emulator_serves_time_and_install_profile_over_the_wire():
+    emu = Emulator(host="127.0.0.1", port=0, seed=11, tz_offset_hours=10)
+    emu.start()
+    try:
+        with LocalClient("127.0.0.1", emu.port, timeout=3.0) as c:
+            c.login()
+            tl = c.time_location()
+            assert tl.get("time") and tl.get("timezone") == 10
+            prof = c.install_profile()
+            assert prof.get("airSwitchCur") and prof.get("gridSoftLimit") == -1
+    finally:
+        emu.stop()
+
+
+def test_half_hour_zone_is_expressible():
+    """Australia/Adelaide is UTC+9:30. The device's integer `timezone` field cannot say
+    that, so the exact offset must survive in `time` — the field consumers derive from."""
+    import datetime as dt
+
+    site = SyntheticSite(1, tz_offset_hours=9.5)
+    now = dt.datetime.now(dt.timezone.utc).timestamp()
+    tl = site.time_location(now)
+    local = dt.datetime.strptime(tl["time"], "%Y-%m-%d %H:%M:%S")
+    utc_now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+    assert abs(round((local - utc_now).total_seconds() / 60) - 570) <= 1
+    assert tl["timezone"] == 10            # rounded, as the integer field forces
+
+
+def test_ibg_run_status_carries_the_grid_measurements():
+    """A consumer's grid view reads voltage/frequency from 1708 — 1701's rated* fields are
+    region enum codes, not volts and hertz."""
+    site = SyntheticSite(1, tz_offset_hours=10)
+    r = site.ibg_run_status(_ts_for_local_hour(site, 12.0))
+    # Mixed units, as on the device: the line voltage is in TENTHS, the legs are not.
+    assert r["gridLineVol"] == pytest.approx((r["gridVol1"] + r["gridVol2"]) * 10, abs=1)
+    assert 2300 <= r["gridLineVol"] <= 2500                        # ~230–250 V service
+    assert 59 <= r["gridFreq"] <= 61                               # hertz, not hundredths
+    assert r["dspSettingFreq"] == 60                               # configured nominal

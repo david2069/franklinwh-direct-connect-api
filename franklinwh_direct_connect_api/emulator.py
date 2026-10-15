@@ -68,6 +68,7 @@ class Emulator:
                  equip_no: str = DEFAULT_EQUIP, pcap: str | None = None,
                  seed: int | None = None, serial: str | None = None,
                  dynamic: bool = True, units: int = 1,
+                 tz_offset_hours: float | None = None,
                  extra: dict[int, Any] | None = None):
         self.host = host
         self.port = port
@@ -79,7 +80,7 @@ class Emulator:
         # to answer from. ``--static`` (dynamic=False, no seed) keeps the canned/pcap path.
         self.site: SyntheticSite | None = None
         if dynamic and (seed is not None or not self.canned):
-            self.site = SyntheticSite(seed or 0, serial)
+            self.site = SyntheticSite(seed or 0, serial, tz_offset_hours=tz_offset_hours)
             self.equip_no = self.site.serial
         elif serial is not None:
             self.equip_no = serial
@@ -116,6 +117,12 @@ class Emulator:
             return site.mode_config(now)
         if resp_cmd == 1708:
             return site.ibg_run_status(now)
+        if resp_cmd == 1904:                # 1903 solar PV config — so an install
+            return site.solar_pv()          # profile derived from a mock sees solar
+        if resp_cmd == 1202:                # 1201 time/location — a LIVE clock, not a
+            return site.time_location(now)  # fixed capture date (see time_location)
+        if resp_cmd == 1702:                # 1701 install profile — synthetic, so a
+            return site.install_profile()   # grid/inverter view has something to read
         # -- multi-aPower battery reads --
         if resp_cmd in (1106, 1832):        # device_check / battery_modules
             return site.device_check(self.units)
@@ -230,16 +237,16 @@ class Emulator:
 
 def run(host: str = "127.0.0.1", port: int = 9000, equip_no: str = DEFAULT_EQUIP, *,
         seed: int | None = None, serial: str | None = None, dynamic: bool = True,
-        units: int = 1) -> int:
+        units: int = 1, tz_offset_hours: float | None = None) -> int:
     emu = Emulator(host, port, equip_no=equip_no, seed=seed, serial=serial,
-                   dynamic=dynamic, units=units)
+                   dynamic=dynamic, units=units, tz_offset_hours=tz_offset_hours)
     # flush=True so the "listening" line appears immediately in container logs
     # (Python block-buffers stdout when it is a pipe rather than a TTY).
     if emu.site is not None:
         print(f"FranklinWH emulator listening on {host}:{emu.port} "
               f"(dynamic seed={seed if seed is not None else 0} serial={emu.equip_no})",
               flush=True)
-        print(f"  live cmdTypes 1302/1726/1102/1404/1708 generated per-request; "
+        print(f"  live cmdTypes 1302/1726/1102/1404/1708/1202/1702 generated per-request; "
               f"other reads canned ({len(emu.canned)} captured)", flush=True)
     else:
         print(f"FranklinWH emulator listening on {host}:{emu.port} "
