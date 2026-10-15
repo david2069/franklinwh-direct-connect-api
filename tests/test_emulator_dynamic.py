@@ -292,7 +292,8 @@ def test_ibg_run_status_carries_the_grid_measurements():
     region enum codes, not volts and hertz."""
     site = SyntheticSite(1, tz_offset_hours=10)
     r = site.ibg_run_status(_ts_for_local_hour(site, 12.0))
-    assert r["gridLineVol"] == r["gridVol1"] + r["gridVol2"]      # halves of one service
-    assert 2300 <= r["gridLineVol"] <= 2500                        # tenths of a volt
-    assert 5900 <= r["gridFreq"] <= 6100                           # hundredths of a hertz
-    assert r["dspSettingFreq"] == 6000                             # configured nominal
+    # Mixed units, as on the device: the line voltage is in TENTHS, the legs are not.
+    assert r["gridLineVol"] == pytest.approx((r["gridVol1"] + r["gridVol2"]) * 10, abs=1)
+    assert 2300 <= r["gridLineVol"] <= 2500                        # ~230–250 V service
+    assert 59 <= r["gridFreq"] <= 61                               # hertz, not hundredths
+    assert r["dspSettingFreq"] == 60                               # configured nominal

@@ -353,20 +353,23 @@ class SyntheticSite:
         ``ratedGridVolt``/``ratedGridHz`` are region enum codes), and a mock that answered
         the profile but left the measurements empty looked like a half-broken gateway.
 
-        Units follow the hardware: voltages in tenths of a volt, frequency in hundredths
-        of a hertz. ``gridVol1``/``gridVol2`` are the two halves of the native split-phase
-        layout and sum to ``gridLineVol``.
+        Units are NOT uniform, and that is the device, not a slip here: ``gridLineVol`` is
+        in TENTHS of a volt (a live read on the reference aGate returned 2437 for a ~244 V
+        service), while ``gridVol1``/``gridVol2`` and the frequencies are plain values.
+        The halves are the two legs of the native split-phase layout and sum to the line
+        voltage.
         """
         mode = self._current_mode(ts)
         # A slow, bounded wander around nominal — enough to look live, never enough to
         # read as a grid event.
         wobble = 1.5 * math.sin(ts / 600.0)
-        half = round((120.0 + wobble) * 10)
+        half = 120.0 + wobble
         return {"opt": 0, "result": 0, "ibgRunStatus": MODE_IDS[mode],
                 "name": mode, "energyMode": MODE_WORKMODE[mode],
-                "gridVol1": half, "gridVol2": half, "gridLineVol": half * 2,
-                "gridFreq": round((60.0 + wobble / 100.0) * 100),
-                "dspSettingFreq": 6000}
+                "gridVol1": round(half, 1), "gridVol2": round(half, 1),
+                "gridLineVol": round(half * 2 * 10),     # tenths of a volt
+                "gridFreq": round(60.0 + wobble / 100.0, 2),
+                "dspSettingFreq": 60}
 
     # -- 1727 mode set (write round-trip) ------------------------------------
     def set_mode_write(self, data: dict[str, Any]) -> dict[str, Any]:
