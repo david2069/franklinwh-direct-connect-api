@@ -6,6 +6,15 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.5.0] — 2026-10-15
+
+The emulator gained a live site clock, an install profile and an explicit timezone. Cut as
+a release because a consumer installing this library from PyPI could not use any of it —
+the Direct Connect Bridge's add-on hit `TypeError: unexpected keyword argument
+'tz_offset_hours'` against 0.4.0 and failed to create a mock gateway.
+
 > Entries below start on 2026-10-13, when this section was first kept current. Earlier
 > releases are recorded under their own headings; nothing before that point is
 > reconstructed here.
