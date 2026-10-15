@@ -15,6 +15,26 @@ differs. They are **not** forks of each other.
 | Focus | full data layer + control + tooling + emulator | transport + command table |
 | Client methods | 54 public methods (0.4.0) | ~10 |
 | Device capabilities covered | 70 cmdTypes catalogued, most with hardware-verified semantics (5 are marked UNCONFIRMED) | 44-command table (names/opcodes) |
+
+### A note on similar PyPI names
+
+Four distributions on PyPI have confusingly similar names. **Only one is this project.**
+
+| PyPI name | Whose | What |
+| --- | --- | --- |
+| `franklinwh-direct-connect-api` | **this project** | the only name this library has ever been published under |
+| `franklinwh-local-api` | `hAr1x` | an async **Modbus TCP** client — a different protocol entirely |
+| `franklinwh-local` | not ours; owner unconfirmed | `0.1.0a0` only, described as a direct-TCP client |
+| `franklinwh` | third party | a general FranklinWH wrapper |
+
+Checked 2026-10-09 against the PyPI project scopes this account can publish to, which
+are exactly `franklinwh-cloud`, `franklinwh-direct-connect-api` and `franklinwh-modbus`.
+
+This matters because the obvious assumption is wrong: the rename to
+`franklinwh-direct-connect-api` left **no** abandoned distribution of ours behind, so
+there is nothing on PyPI to deprecate, yank or point elsewhere. A plan to publish a
+"renamed →" pointer release for `franklinwh-local` was written and then abandoned for
+exactly this reason — it is someone else's project. Do not retry it.
 | Reads (battery cells, PE, energy, TOU, generator…) | ✅ deep | ⚠️ a few high-level queries |
 | Writes / control (mode, circuits, generator, off-grid, DER) | ✅ six writes, most self-verifying (see the caveat below) | ⚠️ SunSpec-Modbus enable only |
 | Emulator / mock aGate | ✅ dynamic, multi-aPower | ❌ |
@@ -82,7 +102,7 @@ discards. See [the table in USAGE](USAGE.md#writes-from-the-library).
 * **CLI** — 16 purpose-built subcommands (`battery`, `mode`, `tou`, `energy_rollup`,
   `grid_profile`, `der_comms`, `scan`, `health`, `emulate`, `probe`, …) plus one
   generated per catalogued cmdType — 87 in total on 0.4.0.
-* **Home-Assistant bridge** — the companion `franklinwh-local-bridge`.
+* **Home-Assistant bridge** — the companion `franklinwh-direct-connect-bridge`.
 
 voidstarr provides `LocalClient` with ~10 query helpers plus `set_sunspec_modbus`, and
 raw `request()` for anything else — a solid base to build on, but the functional
