@@ -62,9 +62,16 @@ class SyntheticSite:
         Optional explicit IBG_SN override. When ``None`` a unique 20-char serial that
         embeds the seed is generated, so multiple seeds always look like distinct
         devices to a multi-gateway consumer.
+    tz_offset_hours:
+        The site's UTC offset in hours — fractional for the half-hour zones (9.5 for
+        Australia/Adelaide). ``None`` keeps the per-seed random offset, which gives
+        each mock a different time of day. Pass it when several mocks model ONE site:
+        gateways at one address are in one timezone, and letting the seed scatter them
+        produces a site whose gateways disagree about what hour it is.
     """
 
-    def __init__(self, seed: int, serial: str | None = None):
+    def __init__(self, seed: int, serial: str | None = None,
+                 tz_offset_hours: int | None = None):
         self.seed = int(seed)
         rng = random.Random(self.seed)
 
@@ -74,7 +81,9 @@ class SyntheticSite:
         self.batt_cap_kw = 2.0 + 1.5 * rng.random()      # 2–3.5 kW battery power limit
         self.soc_morning = 25.0 + 20.0 * rng.random()    # morning SoC base 25–45 %
         # Timezone offset so different mocks sit at different times of day (demo colour).
-        self.tz_offset_hours = rng.randint(-11, 12)
+        # An explicit offset overrides it — see the class docstring.
+        seeded_tz = rng.randint(-11, 12)
+        self.tz_offset_hours = seeded_tz if tz_offset_hours is None else float(tz_offset_hours)
 
         # Unique, collision-free serials. "MOCK" + 4-digit seed + 12 hex = 20 chars,
         # matching the real 20-char IBG_SN shape (and the header's [0-9A-Za-z] charset).
@@ -250,6 +259,86 @@ class SyntheticSite:
         }
 
     # -- 1404 / 1708 mode reflection (trivial, optional) ---------------------
+    def solar_pv(self) -> dict[str, Any]:
+        """1903 -> 1904 solar PV configuration, consistent with this site's own solar.
+
+        The emulator produced solar POWER from the first release but never the solar
+        CONFIG, so anything deriving an install profile from a mock concluded "no solar"
+        while watching kilowatts arrive from it. Reported capacity is this site's seeded
+        ``solar_peak_kw``, so the two agree instead of being independently invented.
+
+        Rated power is in units of 100 W, which is the device's convention.
+        """
+        rated = max(1, int(round(self.solar_peak_kw * 1000 / 100)))
+        return {
+            "opt": 0, "result": 0, "reason": 0,
+            "installPV1port": 1,
+            "installPV2port": 0,
+            "PV1RatedPower": rated,
+            "PV2RatedPower": 0,
+            "solarRatedPower": rated * 100,
+            "remoteSolarEn": 0,
+        }
+
+    def time_location(self, ts: float) -> dict[str, Any]:
+        """1201 -> 1202 ``time_location``: the site's own wall-clock.
+
+        Synthesised rather than canned because a FIXED date is not a clock. A consumer
+        that derives the site's UTC offset from this reading (``time`` minus UTC now) got
+        the capture's date, i.e. an offset of hundreds of days — which is not a timezone
+        and cannot be used as one.
+
+        ``timezoneStr`` is empty, matching the hardware: the aGate reports an offset, not
+        an IANA name.
+        """
+        local = (datetime.datetime.fromtimestamp(ts, datetime.timezone.utc)
+                 + datetime.timedelta(hours=self.tz_offset_hours)).replace(tzinfo=None)
+        return {
+            "opt": 0, "result": 0,
+            "time": local.strftime("%Y-%m-%d %H:%M:%S"),
+            # The device's own field is a whole-hour offset, so a :30 or :45 zone cannot be
+            # expressed here — exactly as on the hardware. The exact offset is carried by
+            # ``time``, which is what a consumer derives the site's offset from.
+            "timezone": int(round(self.tz_offset_hours)),
+            "timezoneStr": "",
+            "postcode": "",
+        }
+
+    def install_profile(self) -> dict[str, Any]:
+        """1701 -> 1702 ``install_profile``: the electrical/install profile.
+
+        SYNTHETIC values, not measurements — they exist so a consumer's Grid & Inverter
+        view has a profile to render against a mock instead of reporting the gateway
+        unreachable. Two of them deliberately copy real firmware behaviour rather than
+        being made plausible: ``fhpRatePower`` and ``genRatePower`` read 0 on the
+        reference aGate (catalog 1701), and a mock that returned a real-looking rating
+        there would teach a consumer to trust a field the hardware does not populate.
+
+        Limits use the device's -1 = unlimited convention. Solar agrees with
+        :meth:`solar_pv` and the site's own ``solar_peak_kw``.
+        """
+        return {
+            "opt": 0, "result": 0, "reason": 0,
+            "electricSys": 0,
+            "electricSupply": 63,
+            "airSwitchCur": 100,
+            "gridPhaseConSet": 0,
+            "gridPhaseSeqSet": 0,
+            "isThreePhaseInstall": 0,
+            "ratedGridVolt": 0,
+            "ratedGridHz": 0,
+            "solarInstallState": 1,
+            "solarInvManu": 0,
+            "solarInvRatePower": 0,
+            "genRatePower": 0,
+            "fhpRatePower": 0,
+            "kwRatePower": -1,
+            "gridSoftLimit": -1,
+            "gridHardLimit": -1,
+            "gridExportEnable": 1,
+            "isPcsDischgEn": 1,
+        }
+
     def mode_config(self, ts: float) -> dict[str, Any]:
         """1404 ``mode_config`` reflecting the current mode."""
         mode = self._current_mode(ts)
@@ -257,10 +346,27 @@ class SyntheticSite:
                 "modeChoose": MODE_WORKMODE[mode], "name": mode}
 
     def ibg_run_status(self, ts: float) -> dict[str, Any]:
-        """1708 ``ibg_run_status`` reflecting the current mode."""
+        """1708 ``ibg_run_status`` reflecting the current mode, plus the grid measurements.
+
+        The voltages and frequency are SYNTHETIC, like every other number here. They are
+        present because a consumer's grid view reads them from 1708 (not from 1701, whose
+        ``ratedGridVolt``/``ratedGridHz`` are region enum codes), and a mock that answered
+        the profile but left the measurements empty looked like a half-broken gateway.
+
+        Units follow the hardware: voltages in tenths of a volt, frequency in hundredths
+        of a hertz. ``gridVol1``/``gridVol2`` are the two halves of the native split-phase
+        layout and sum to ``gridLineVol``.
+        """
         mode = self._current_mode(ts)
+        # A slow, bounded wander around nominal — enough to look live, never enough to
+        # read as a grid event.
+        wobble = 1.5 * math.sin(ts / 600.0)
+        half = round((120.0 + wobble) * 10)
         return {"opt": 0, "result": 0, "ibgRunStatus": MODE_IDS[mode],
-                "name": mode, "energyMode": MODE_WORKMODE[mode]}
+                "name": mode, "energyMode": MODE_WORKMODE[mode],
+                "gridVol1": half, "gridVol2": half, "gridLineVol": half * 2,
+                "gridFreq": round((60.0 + wobble / 100.0) * 100),
+                "dspSettingFreq": 6000}
 
     # -- 1727 mode set (write round-trip) ------------------------------------
     def set_mode_write(self, data: dict[str, Any]) -> dict[str, Any]:
