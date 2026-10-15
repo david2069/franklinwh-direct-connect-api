@@ -357,9 +357,20 @@ itself drops an idle TCP/9000 session, or expires a login, is **unmeasured** (se
 
 The emulator is a fake aGate. Responses are **synthesised** by a deterministic
 `SyntheticSite` — a plausible site (battery, aPowers, power flow, modes, smart circuits,
-energy history) derived from a seed, so no capture is bundled or needed. `--seed`,
-`--serial` and `--units N` (multi-aPower) shape it; `--static` turns the synthetic site
-off and answers from canned data only; `Emulator(pcap=<path>)` replays your own capture.
+energy history, the install profile and the site clock) derived from a seed, so no capture
+is bundled or needed. `--seed`, `--serial` and `--units N` (multi-aPower) shape it;
+`--static` turns the synthetic site off and answers from canned data only;
+`Emulator(pcap=<path>)` replays your own capture.
+
+**`--tz-offset HOURS` sets the site's UTC offset** (fractional for the half-hour zones:
+`9.5`). Omit it and each seed picks its own, which is useful colour for a single mock and
+wrong for several: gateways modelling ONE site must agree on the time of day, or anything
+deriving the site clock from a gateway gets a different answer per gateway.
+
+```bash
+franklinwh-direct-connect emulate --port 9001 --seed 1 --tz-offset 10
+franklinwh-direct-connect emulate --port 9002 --seed 2 --tz-offset 10   # same site, same clock
+```
 
 ```bash
 franklinwh-direct-connect emulate --port 9000
