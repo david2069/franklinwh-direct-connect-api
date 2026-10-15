@@ -13,16 +13,16 @@ differs. They are **not** forks of each other.
 | PyPI | `franklinwh-direct-connect-api` | — (source only) |
 | License | MIT | MIT |
 | Focus | full data layer + control + tooling + emulator | transport + command table |
-| Client methods | 52 | ~10 |
-| Device capabilities covered | 70 cmdTypes, with hardware-verified semantics | 44-command table (names/opcodes) |
+| Client methods | 54 public methods (0.4.0) | ~10 |
+| Device capabilities covered | 70 cmdTypes catalogued, most with hardware-verified semantics (5 are marked UNCONFIRMED) | 44-command table (names/opcodes) |
 | Reads (battery cells, PE, energy, TOU, generator…) | ✅ deep | ⚠️ a few high-level queries |
-| Writes / control (mode, circuits, generator, off-grid, DER) | ✅ with read-back verification | ⚠️ SunSpec-Modbus enable only |
+| Writes / control (mode, circuits, generator, off-grid, DER) | ✅ six writes, most self-verifying (see the caveat below) | ⚠️ SunSpec-Modbus enable only |
 | Emulator / mock aGate | ✅ dynamic, multi-aPower | ❌ |
 | LAN discovery / scan | ✅ | ❌ |
-| CLI (~20 subcommands) | ✅ | ❌ |
-| Docstrings & worked examples | ✅ rich (79 docstrings in the client alone) | ✅ README example |
-| **Reference application** (real-world) | ✅ full-stack bridge (~16k LOC) | ❌ |
-| Home-Assistant integration | ✅ MQTT discovery + REST | ❌ |
+| CLI | ✅ 87 subcommands (16 purpose-built + one per cmdType) | ❌ |
+| Docstrings & worked examples | ✅ rich (59 docstring blocks in `client.py` alone) | ✅ README example |
+| **Reference application** (real-world) | ✅ a full-stack bridge (separate repo) | ❌ |
+| Home-Assistant integration | ✅ MQTT discovery + REST — via the companion bridge, not this library | ❌ |
 | Documentation | layered (usage/API/mapping) + verified catalog | one excellent protocol README |
 
 **TL;DR** — this library is a complete functional stack for *operating* the aGate;
@@ -62,21 +62,26 @@ what reaches through it.
 | DER comms (enable SunSpec Modbus / 2030.5) | ✅ | ✅ (SunSpec enable) |
 | Reboot | ✅ | ❌ |
 
-Every write here is a full-block **read-modify-write with read-back verification**
-(the aGate rejects partial frames and a `result:0` ack does not prove the change
-applied) — so `set_smart_circuit`, `set_mode`, etc. only report success when a
-re-read confirms it.
+Writes are full-block **read-modify-write** — the aGate rejects partial frames, and a
+`result:0` ack does not prove the change applied. **How far each write is verified
+differs, and the docs say so per write:** `set_smart_circuit` and the `set_generator*`
+family re-read every field they touched and report `ok` only on a matching read-back;
+`set_der_comms` explicitly does *not* self-verify (confirm `:502` instead); `set_offgrid`
+returns the ack only; and `set_circuit_schedule` is a known no-op the gateway ACKs and
+discards. See [the table in USAGE](USAGE.md#writes-from-the-library).
 
 ### Tooling around the API
 * **Emulator** — a deterministic per-seed synthetic aGate + N aPowers, wire-faithful
   for any serial, serving live telemetry, energy history, smart circuits, and
-  **persisting writes** (toggle a mock circuit and it sticks). No hardware needed to
-  develop against.
+  **persisting writes** (toggle a mock circuit or set the mode and it sticks — checked
+  offline 2026-10-15). No hardware needed to develop against. It is a development aid,
+  not evidence of device behaviour.
 * **Discovery** — LAN scan for gateways on TCP 9000 with a real login handshake.
 * **Proxy / pcap decode / analyze** — a transparent decoding relay and offline capture
   tooling.
-* **CLI** — ~20 subcommands (`battery`, `mode`, `tou`, `energy_rollup`, `grid_profile`,
-  `der_comms`, `scan`, `health`, `emulate`, …).
+* **CLI** — 16 purpose-built subcommands (`battery`, `mode`, `tou`, `energy_rollup`,
+  `grid_profile`, `der_comms`, `scan`, `health`, `emulate`, `probe`, …) plus one
+  generated per catalogued cmdType — 87 in total on 0.4.0.
 * **Home-Assistant bridge** — the companion `franklinwh-local-bridge`.
 
 voidstarr provides `LocalClient` with ~10 query helpers plus `set_sunspec_modbus`, and
@@ -122,12 +127,12 @@ the difference is largest, and it is what most developers actually feel.
 
 **Docstrings.** Every public method here carries a real docstring — what it reads or
 writes, the cmdType, the payload shape, the sign conventions, and the caveats (`client.py`
-alone has 79 docstring blocks). Writes document their read-modify-write recipe and how
+alone has 59 docstring blocks). Writes document their read-modify-write recipe and how
 success is verified. voidstarr's code is clean and typed with a solid README example, but
 the per-call documentation is lighter.
 
 **Examples.** A quick-start in the README, a how-to in `docs/USAGE.md`, and — uniquely —
-a **CLI of ~20 subcommands** that is itself a set of worked examples: every command is a
+a **CLI of 87 subcommands** that is itself a set of worked examples: every command is a
 call into the library you can read, run offline against the emulator, or point at real
 hardware.
 
@@ -135,15 +140,16 @@ hardware.
 The companion **`franklinwh-local-bridge`** is not a toy demo; it is a complete
 application built on this library, and the best documentation of what the library can do:
 
-* **~8,000 lines of Python** — a FastAPI service exposing **103 REST endpoints**, a
-  per-gateway polling supervisor, an in-process mock-aGate manager, and a metrics store.
+* A **FastAPI service** — a REST API over this library, a per-gateway polling
+  supervisor, an in-process mock-aGate manager, and a metrics store.
 * **Publishes to Home Assistant over MQTT** (discovery + state), so the aGate shows up as
   native HA entities — with the synthetic/mock path gated off by default.
-* **~9,000 lines of HTML + JavaScript** — a **rich optional web UI** (Alpine.js +
-  Chart.js, 13 tabs: dashboard, battery/per-cell, solar, smart circuits, generator,
-  scheduler, logs, settings, Home-Assistant, …) with live charts, a Sankey energy flow,
-  a real-time watch-live mode, and a full Gateways manager.
+* A **rich optional web UI** (Alpine.js + Chart.js) with live charts, a Sankey energy
+  flow, a real-time watch-live mode, per-cell battery views and a Gateways manager.
 * Runs as a Docker container or a Home-Assistant add-on.
+
+(Sizes and endpoint counts are that repository's to state, not this one's — a copy of
+them here went stale. Read it directly.)
 
 So a developer evaluating this library doesn't have to imagine what it enables — they can
 run a production-grade app that exercises nearly the entire surface (reads, verified
@@ -178,5 +184,7 @@ the framing is invisible to everything above it.
 ---
 
 *Credit: the per-serial seed formula and the `CommunicationCmd` enum are the work of
-`voidstarr/franklinwh_local` (MIT). Written 2026-09-19; both libraries evolve, so
-re-check the repos for current coverage.*
+`voidstarr/franklinwh_local` (MIT). Written 2026-09-19; this library's counts re-measured
+against 0.4.0 on 2026-10-15. Figures for voidstarr's library are as read on the earlier
+date and were not re-checked — both libraries evolve, so re-check the repos for current
+coverage.*

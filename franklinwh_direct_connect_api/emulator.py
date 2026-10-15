@@ -10,9 +10,9 @@ own capture instead.
 
 Run it::
 
-    franklinwh-local emulate --port 9000
+    franklinwh-direct-connect emulate --port 9000
     # then, in another shell:
-    franklinwh-local --host 127.0.0.1 power_flow
+    franklinwh-direct-connect --host 127.0.0.1 power_flow
 """
 
 from __future__ import annotations

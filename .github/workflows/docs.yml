@@ -9,7 +9,7 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-      - 'franklinwh_local/**'      # API.md is generated from the source by mkdocstrings
+      - 'franklinwh_direct_connect_api/**'   # API.md is generated from the source by mkdocstrings
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 

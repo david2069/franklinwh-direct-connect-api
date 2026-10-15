@@ -47,29 +47,41 @@ over the local broker channel. `franklinwh-direct-connect` speaks it directly.
 - :material-rocket-launch: **[Usage Guide](USAGE.md)** — install, connect via the
   hotspot, CLI, library API, emulator, decoding captures.
 - :material-protocol: **[Protocol & Catalog](PROTOCOL.md)** — wire format, the
-  cipher, and the full `cmdType` command catalog.
+  cipher, the `cmdType` catalog, and what each write is verified against.
 - :material-api: **[API Reference](API.md)** — auto-generated from the source
-- :material-scale-balance: **[Compare: the two Local API libraries](LOCAL_API_COMPARISON.md)** — this library vs `voidstarr/franklinwh_local`.
   docstrings.
+- :material-scale-balance: **[Compare: the two Local API libraries](LOCAL_API_COMPARISON.md)** — this library vs `voidstarr/franklinwh_local`.
 
 </div>
 
 ## 30-second taste
 
-```python
-from franklinwh_direct_connect_api import LocalClient
+```bash
+pip install franklinwh-direct-connect-api
+```
 
-with LocalClient("10.100.1.1") as c:   # the hotspot gateway IP
+No aGate to hand? Run the emulator and point any of this at `127.0.0.1` instead — only
+the two lines marked *live* need real hardware.
+
+```python
+from franklinwh_direct_connect_api import DirectConnectClient
+
+with DirectConnectClient("10.100.1.1") as c:   # the hotspot gateway IP
     c.login()
     flow = c.power_flow()
     print(f"SoC {flow['soc']}%  load {flow['p_load']}W  battery {flow['p_fhp']}W")
 ```
 
 ```bash
-franklinwh-direct-connect scan gateway                    # find the aGate on its hotspot
-franklinwh-direct-connect --host 10.100.1.1 power_flow --watch 5
-franklinwh-direct-connect emulate --port 9000             # test with no hardware
+franklinwh-direct-connect emulate --port 9000             # no hardware: a fake aGate
+franklinwh-direct-connect --host 127.0.0.1 power_flow     # ... talk to it
+
+franklinwh-direct-connect scan gateway                    # live: find the aGate on its hotspot
+franklinwh-direct-connect --host 10.100.1.1 power_flow --watch 5   # live
 ```
+
+`DirectConnectClient` is the name from 0.4.0 on; `LocalClient` is kept as an alias of
+the same class.
 
 !!! note "Security"
     The channel is plain TCP with keyless obfuscation. Anyone on the hotspot can
