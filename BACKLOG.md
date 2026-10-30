@@ -5,6 +5,37 @@ Status: `queued` → `planned` → `in-progress` → `done`.
 
 ---
 
+## DEF-RUN-STATUS-8-UNCONFIRMED — `run_status` 8 "Debug Mode" is the cloud's label, and a measurement contradicts it
+
+**Severity:** S2 (wrong detection path in public docs) · **Status:** DONE (2026-10-31, on `feat/debug-mode-1821`) · **Filed:** 2026-10-31 · **Area:** catalog / docs
+
+`RUN_STATUS[8] = "Debug Mode"` was copied from the cloud vocabulary
+(`franklinwh_cloud.const.RUN_STATUS`), which this repo's own comment says the local broker
+matches "byte-for-byte". It was never measured locally, and the one local measurement
+disagrees.
+
+With Debug Mode **definitively on** — `1821` `enable` read back `1`, and the owner confirmed
+the FranklinWH app showed Debug Mode — `1301` `run_status` read **0** ("Standby"), not 8
+(Direct Connect Bridge session's reading, owner present, aGate X-01-AU, IBG V12R02B60D00,
+2026-10-23 22:57 AEDT, bridge issue #311; turning it off returned `run_status` to 2).
+
+**Consequence:** anything deciding "is Debug Mode on" from `run_status == 8` would have
+missed a live Debug Mode. The bridge's own top-bar badge hit exactly this and now reads
+`1821.enable` instead.
+
+**Fixed** by recording the conflict beside the map in `catalog.py` and in
+`docs/PROTOCOL.md`, not by picking a side. **8 is deliberately NOT removed:** one site on
+one firmware is not grounds to call the cloud vocabulary wrong, and no reading has yet
+shown what *does* produce an 8. Two tests: one pins both halves in place, one fails if any
+code path in the package ever decides Debug Mode from `run_status == 8` — verified by
+adding such a path and watching it fail.
+
+**Still unknown, and worth a reading if anyone is ever in a position to take one:** what
+state actually reports `run_status` 8, and whether the cloud reports 8 for the same moment
+the local channel reports 0 (which would make it a translation layer, not a device state).
+
+---
+
 ## DEF-1821-POLICY-CONFLICT — a policy claiming this repo forbids the 1821 write PR #22 ships
 
 **Severity:** S2 (hardware-write governance, PR #22 blocked) · **Status:** QUEUED — needs the owner · **Filed:** 2026-10-31 · **Area:** policy / writes
@@ -42,15 +73,25 @@ conflicting instruction from the owner (1821 permitted; only 1823/1825 forbidden
 text and dates were checked directly; the bridge's account of its own instruction is its
 claim, unverified here. Two conflicting instructions is the reason this needs the owner.
 
-**Blocked on the owner for:** (1) was the 2026-10-23 write authorised; (2) does this
-document bind this repo; (3) whose measurement is it, so the attribution can be fixed.
-Recorded as a comment on PR #22 so it cannot merge unseen. No code changed.
+**Partly resolved 2026-10-31** by reading bridge issue #311 directly. Its step 3, written
+before the test, reads: "Only if 1821 alone tracks Debug Mode: **the owner lifts the 'never
+write 1821–1825' rule for 1821 only.** Write `enable` 1, read it back, check `run_status` 8,
+then write `enable` 0. 1823 is never written." So the write was **authorised** — a narrow,
+recorded lift of exactly that rule, with the owner present — not a bypass. The same issue
+asked for this library to gain `set_debug_mode()` rather than the bridge writing raw calls,
+so PR #22 is the requested outcome.
+
+**Still blocked on the owner:** does `hardware_test_protocol.md` bind this repo **from now
+on**? Rule 2 (2026-10-13) forbids writing 1821/1823/1825; the bridge session reports an
+instruction from the owner permitting 1821 and forbidding only 1823/1825 — its claim,
+unverified here. The past write is settled; the standing rule is not, and PR #22 ships a
+function that performs that write. Recorded on PR #22 so it cannot merge unseen.
 
 ---
 
 ## DEF-1821-EVIDENCE-UNATTRIBUTED — PR #22 states another session's measurement as ours
 
-**Severity:** S2 (evidence standard, public docs) · **Status:** QUEUED — needs the owner · **Filed:** 2026-10-31 · **Area:** docs / evidence
+**Severity:** S2 (evidence standard, public docs) · **Status:** DONE (2026-10-31, on `feat/debug-mode-1821`) · **Filed:** 2026-10-31 · **Area:** docs / evidence
 
 The `1821` catalogue entry, `docs/PROTOCOL.md` and the CHANGELOG on `feat/debug-mode-1821`
 all read "CONFIRMED by write and read-back on one site (aGate X-01-AU, IBG V12R02B60D00,
@@ -60,9 +101,18 @@ that wrote those words, so as published a reader takes it to be this library's o
 `CLAUDE.md` is explicit: "When you pass a claim on, label it: who said it, where, when,
 and whether you verified it. Do not restate it as your own finding."
 
-**Fix:** name whose reading it is and state that this repo did not verify it, in all three
-places together. **Not guessed at** — the performer is unknown here, so this needs one line
-from the owner first. **Regression risk:** none; text only.
+**Resolved** by reading bridge issue #311 directly rather than relying on the bridge
+session's account of it. The reading is the **Direct Connect Bridge session's**, taken with
+the owner present, 2026-10-23 22:57 AEDT, with the before/after table and the 23:25 AEDT
+restore recorded there. The catalogue entry, `docs/PROTOCOL.md` and the CHANGELOG now each
+name whose measurement it is and state that this library did not verify it independently.
+
+#311 also records the authorisation, which settles the first question of
+[[DEF-1821-POLICY-CONFLICT]]: its step 3, written before the test, reads "the owner lifts
+the 'never write 1821–1825' rule for **1821 only**." The rule was lifted by the owner for
+that command alone, with him present — not bypassed. `1823`/`1825` remain never-write.
+
+And it exposed [[DEF-RUN-STATUS-8-UNCONFIRMED]].
 
 ---
 
