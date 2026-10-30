@@ -230,6 +230,15 @@ Add new rows to `franklinwh_direct_connect_api/catalog.py` as more codes are obs
 `0` is off, and `opt: 1` writes it. Confirmed by write and read-back on **one** site
 (aGate X-01-AU, IBG V12R02B60D00, 2026-10-23); it was `unknown_1821` until then.
 
+!!! info "Whose measurement this is"
+
+    The 2026-10-23 readings below are the **Direct Connect Bridge session's**, taken with
+    the owner present and recorded on that repository's issue #311. This library did
+    **not** verify them independently — it holds no capture of them and has run no 1821
+    write of its own. The owner lifted a standing "never write 1821–1825" rule for
+    **1821 only** for that test, as the same issue records; `1823` and `1825` remain
+    never-write, and nothing here authorises writing them.
+
 !!! danger "Turning Debug Mode on stops normal battery operation"
 
     Measured on that site at 22:57 AEDT: self-consumption discharge stopped (battery
@@ -237,6 +246,20 @@ Add new rows to `franklinwh_direct_connect_api/catalog.py` as more codes are obs
     `run_status` went 2 → 0. Normal discharge resumed when it was turned off. Use
     `set_debug_mode()`, which verifies by reading `1821` back, and turn it off when you
     are finished.
+
+!!! warning "`run_status` did not report Debug Mode — do not detect it that way"
+
+    The table below labels `run_status` **8** "Debug Mode", which is the **cloud's**
+    vocabulary, copied. The one local measurement contradicts it: with Debug Mode
+    definitively on — `1821` `enable` read back `1`, and the owner confirmed the
+    FranklinWH app showed Debug Mode — `run_status` read **0** ("Standby"), **not 8**.
+
+    So anything deciding "is Debug Mode on" from `run_status == 8` would have missed this
+    state entirely. Read `1821` `enable` instead (`client.debug_mode()`).
+
+    **8 is not removed from the table.** One site on one firmware is not enough to call
+    the cloud vocabulary wrong, and no reading has yet shown what *does* produce an 8.
+    Both halves are recorded rather than quietly picking one.
 
 #### Grid power-plane limits (1701)
 
@@ -290,7 +313,7 @@ so the two channels agree. Available as `franklinwh_direct_connect_api.run_statu
 | 5 | Off-Grid Standby |
 | 6 | Off-Grid Charging |
 | 7 | Off-Grid Discharging |
-| 8 | Debug Mode (Franklin remote-support session) |
+| 8 | Debug Mode (Franklin remote-support session) — **but see the warning above: a measured Debug Mode read 0, not 8** |
 | 9 | VPP mode — **defined in the enum, but not emitted by local `1301`; see below** |
 
 !!! warning "Do not detect VPP from `run_status`"

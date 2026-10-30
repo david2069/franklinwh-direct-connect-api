@@ -10,6 +10,8 @@ The safety property is what these tests mostly protect: turning Debug Mode ON st
 normal battery operation, so the write verifies by read-back and never reports success on
 an acknowledgement alone.
 """
+from pathlib import Path
+
 import pytest
 
 from franklinwh_direct_connect_api import WRITES, catalog
@@ -138,3 +140,50 @@ def test_the_1701_finding_is_recorded_with_its_conditions():
     proto = (__import__("pathlib").Path(__file__).resolve().parents[1]
              / "docs/PROTOCOL.md").read_text()
     assert "gridImportLimit" in proto
+
+
+# -- run_status does NOT report Debug Mode (measured conflict) ----------------
+def test_run_status_8_keeps_the_cloud_label_and_the_conflict_is_recorded():
+    """8 stays in the map, and the contradicting measurement stays beside it.
+
+    `RUN_STATUS[8]` is the CLOUD vocabulary's "Debug Mode", copied. The one local
+    measurement disagreed: with Debug Mode definitively on, 1301 `run_status` read
+    0, not 8 (bridge session's reading, owner present, 2026-10-23, bridge #311).
+
+    Both halves must survive. Dropping 8 would assert the cloud is wrong from one
+    site on one firmware; dropping the note would let a reader detect Debug Mode
+    from `run_status == 8` and silently miss it.
+    """
+    from franklinwh_direct_connect_api import catalog
+
+    assert catalog.RUN_STATUS[8] == "Debug Mode"      # not removed on one reading
+
+    source = Path(catalog.__file__).read_text()
+    # The conflict is recorded next to the map, naming the value actually seen.
+    assert "run_status read **0**" in source or 'run_status read **0**' in source or \
+           "read **0**" in source, "the measured 0 must be recorded beside RUN_STATUS"
+    assert "#311" in source                            # whose reading, and where
+
+
+def test_nothing_in_the_library_detects_debug_mode_from_run_status():
+    """The detection path is 1821 `enable`, never `run_status == 8`.
+
+    Guards the lesson from the measurement: a consumer keying off run_status 8
+    would have missed a live Debug Mode. If anyone later adds such a check, this
+    fails and points them at `client.debug_mode()`.
+    """
+    import franklinwh_direct_connect_api as pkg
+
+    pkg_dir = Path(pkg.__file__).parent
+    offenders = []
+    for path in pkg_dir.glob("*.py"):
+        for num, line in enumerate(path.read_text().splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#") or '"""' in stripped:
+                continue                                # prose, not a code path
+            if "run_status" in stripped and "8" in stripped and "==" in stripped:
+                offenders.append(f"{path.name}:{num}: {stripped}")
+    assert not offenders, (
+        "Debug Mode must be read from 1821 enable (client.debug_mode()), not "
+        f"run_status == 8 -- a measured Debug Mode read 0: {offenders}"
+    )
