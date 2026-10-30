@@ -185,12 +185,28 @@ on more fixes.
 
 **State the regression risk** before a change: low, medium or high, and what it touches.
 
-**Name the defect in the commit subject, and the test count in the body.** From the
-library release rules (`franklinwh-modbus` `.agents/policies/release_policy.md`,
-"Traceability"): a defect fix is `fix(DEF-<AREA>-<NAME>): …`, a tracked feature
-`feat(FEAT-…): …`, and the body carries `Tests: N passed`. An internal refactor needs
-neither. This repo did not follow it before 2026-10-31; note that the source repo applies
-it unevenly too, which is a reason to fix it here rather than to treat it as dead letter.
+**Name the defect in the commit subject, and the test count in the body** — a defect fix
+is `fix(DEF-<AREA>-<NAME>): …`, a tracked feature `feat(FEAT-…): …`, and the body carries
+`Tests: N passed`. An internal refactor needs neither.
+
+**This is this repo's own convention, not an inherited rule.** It came from a
+"Traceability" section in an *earlier* version of `franklinwh-modbus`
+`.agents/policies/release_policy.md`; the current policy (effective 2026-10-17) has no such
+section. It is kept because a defect ID makes a `BACKLOG.md` entry traceable to the commit
+that closed it. Do not cite the library release policy as its source — that file was
+superseded, and citing it would be the stale-reference mistake recorded in
+`.agents/policies/SOURCES.md`.
+
+**Report the gates in the PR body — which ran, and which did not.** The library release
+policy's §3 defines them: **G0** the full suite plus a syntax check on every changed file,
+every PR, results in `tests/results/`; **G1** an acceptance run against an approved
+emulator, for changes touching connection, reads, dispatch or modes — this repo's
+in-process `Emulator` qualifies, the external FranklinWH Gateway Emulator is the stronger
+form, and a mock written for the test in hand is neither; **G2** the real aGate for
+anything that writes, changes dispatch or alters safety behaviour; **G3** merge. Per that
+policy, **do not merge past a failed or skipped gate without the owner's word in this
+session — a relayed approval from another session does not count.** This repo was not
+reporting gates before 2026-10-31.
 
 **Issues.** The shared issue policy (`franklinwh-modbus-bridge` `docs/issue-policy.md`,
 accepted 2026-10-16) scopes itself to the two **bridges** by name, so it does not govern
@@ -239,6 +255,13 @@ policies bind this repo, where each actually lives, and where the shared texts h
 Read the source, not the register's summary of it, and not `CLAUDE.md`'s reading of it: where
 this file and a source disagree, **the source wins and this file is wrong.**
 
+**`git fetch` before quoting another repo's policy, and record the ref you read it at.** A
+path that exists is not a file you have read. On 2026-10-31 this session reported a policy
+clause as missing from `franklinwh-modbus` when it was simply absent from a **stale local
+checkout** — the current file was a different document entirely, and the clause was there.
+The Bridge session caught it by naming the commit. Checking out the path is not checking
+the policy.
+
 **Tell them before it lands, not after.** When a change would alter what either repo sees,
 say so in the same session that makes it, naming the branch or PR and what it changes for
 them. The occasions that qualify:
@@ -251,9 +274,10 @@ them. The occasions that qualify:
   demoted, a documented behaviour contradicted by a reading. Both repos may have built on
   the old claim. `run_status` 8 is the worked example: the Bridge keyed a UI badge off a
   value this library had copied from the cloud and never measured;
-- a **release**, with what changed for them. No written mechanism for this exists in the
-  shared policy — `SOURCES.md` divergence 3 — so do it explicitly rather than assuming a
-  tag is noticed.
+- a **release** — this one is not discretionary. The library release policy's §4 step 7:
+  "**Tell the dependants.** Message the bridge sessions with the version and the upgrade
+  notes. They decide when to move their pin." Lead with the upgrade notes, and do not
+  assume a tag or a PyPI publish is noticed.
 
 **Their claims stay claims, and lockstep does not change that.** Alignment means they are
 told and heard, not believed by default. "Claims from other sessions and other repos" still
