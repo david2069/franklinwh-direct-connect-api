@@ -138,7 +138,7 @@ CATALOG: dict[int, CmdInfo] = {
     1725: CmdInfo(1725, 1726, "mode_list", "Operating-mode list: current_id + list[{id, name, reserved_soc, scheduling_type(=cloud workMode), electricity_type}]. 'id' is a GATEWAY-SPECIFIC GUID permanently correlated to a scheduling_type (TOU=1, Self=2, Backup=3), so the two identify the same mode - ids are NOT portable between sites. This is also the only usable local read of reserved_soc (the 1405 block reads zeros)."),
     1727: CmdInfo(1727, 1728, "mode_page", "SET active mode: opt=3 + current_id (site-specific id from 1725/1726). ONLY opt=3 is implemented - opt 0,1,2,4,5,6,7 draw no reply at all (swept write-identical 2026-09-11), so there is no hidden opt carrying a reserve write. Reply is {opt,result} with no reason field. Extra fields (reserved_soc/soc/minSoc/selfMinSoc) are accepted with result:0, but that was tested write-identical so it does not prove they are applied. Use CLI subcommand 'mode' (or alias 'mode_page')."),
     1801: CmdInfo(1801, 1802, "battery_inhibit", "Battery charge-inhibit SoC thresholds: topSoc, inhSocNormal, inhSocCold, InhSocExtCold, normalTemp, coldTemp, extColdTemp, startHeatBatTemp, stopHeatBatTemp, batMaxChFactor, delayToChTime, blackStartOnOff, startGenSoc, stopGenSoc, InhUseFlag. CAUTION: on observed firmware the values read back as the sequential integers 0,1,2,...,14 - i.e. field POSITION, not real data. Treat this block as unpopulated until a site is found that returns plausible values."),
-    1821: CmdInfo(1821, 1822, "debug_mode", "Debug Mode enable — the installer app's Tools -> Debug Mode (Commissioning Guide AU & NZ, App v2.23.0, 2026-09-30, p.48). Returns {enable}: 1 on, 0 off. CONFIRMED by write and read-back on one site (aGate X-01-AU, IBG V12R02B60D00, 2026-10-23): enable 1 turned Debug Mode on and enable 0 turned it off, both read back. SAFETY: turning it ON STOPS NORMAL BATTERY OPERATION. Measured at 22:57 AEDT that day: self-consumption discharge stopped (battery 234 W -> about -42 W), the house moved to the grid (about 245 W) and 1301 run_status went 2 -> 0. Turn it off when finished; the same site restored normal discharge (247 W) on enable 0. One site, one firmware — not a mapping."),
+    1821: CmdInfo(1821, 1822, "debug_mode", "Debug Mode enable — the installer app's Tools -> Debug Mode (Commissioning Guide AU & NZ, App v2.23.0, 2026-09-30, p.48). Returns {enable}: 1 on, 0 off. CONFIRMED by write and read-back on one site (aGate X-01-AU, IBG V12R02B60D00, 2026-10-23): enable 1 turned Debug Mode on and enable 0 turned it off, both read back. WHOSE READING: the Direct Connect Bridge session's, owner present, recorded on that repo's issue #311 - NOT verified independently by this library. SAFETY: turning it ON STOPS NORMAL BATTERY OPERATION. Measured at 22:57 AEDT that day: self-consumption discharge stopped (battery 234 W -> about -42 W), the house moved to the grid (about 245 W) and 1301 run_status went 2 -> 0 - NOT to 8, the value the cloud vocabulary labels Debug Mode, so run_status does not report this state (see RUN_STATUS). Turn it off when finished; the same site restored normal discharge (247 W) on enable 0. One site, one firmware — not a mapping."),
     1823: CmdInfo(1823, 1824, "unknown_1823", "UNCONFIRMED: returns {powerOn, powerOff}, both 0. The installer guide's Debug Mode screen offers an aPower on/off switch beside a charge/discharge kW field, so 1823 (aPower on/off) and 1825 (the kW value) are the obvious candidates — a LEAD from the guide's layout, not a reading. NOT the grid charge/discharge power limits — those live in install_profile (1701: kwRatePower, gridSoftLimit, gridHardLimit) and solar_pv (1903: grid_feed_max), all using the -1=unlimited convention these do not. LEAD: likely the software equivalent of the PHYSICAL aPower power switch (the System User Manual documents one per unit), matching the cloud TOU block's optional powerOffApower field; 1821 {enable} may be its enable flag. UNTESTED and potentially DESTRUCTIVE - a successful write may shut the battery down, with recovery possibly needing the physical switch. DO NOT WRITE remotely. See BACKLOG TEST-1823-APOWER-POWER (on-site test planned ~2026-09-26)."),
     1825: CmdInfo(1825, 1826, "unknown_1825", "UNCONFIRMED: returns {power}, value 0. LEAD (not a reading): the installer app's Debug Mode screen sets Charge/Discharge with a \'Current power (kW)\' value, and 1821 is now confirmed as the Debug Mode enable — so 1825 may hold that kW figure. Reading it while the owner sets a value in the app would settle it; until someone does, the value below stands. NOT a force-charge/discharge setpoint — the cloud has no sendMqtt code for that (force_charge/force_discharge build a TOU session; setPowerControl is REST), and the real power limits are in 1701/1903. Purpose still unknown."),
     1827: CmdInfo(1827, 1828, "ibg_state", "IBG DSP/main state: infiNum, ibgDspState, ibgMainState (programme id), firmware versions, uptime"),
@@ -530,9 +530,24 @@ RUN_STATUS: dict[int, str] = {
     5: "Off-Grid Standby",
     6: "Off-Grid Charging",
     7: "Off-Grid Discharging",
-    8: "Debug Mode",
+    8: "Debug Mode",       # label from the cloud vocabulary - but see the conflict below
     9: "VPP mode",
 }
+
+# CONFLICT, unresolved: 8 is what the CLOUD vocabulary calls Debug Mode, and this map
+# copies it. The one local measurement of Debug Mode disagrees. With Debug Mode
+# definitively ON - 1821 enable read back 1, and the owner confirmed the FranklinWH app
+# showed Debug Mode - 1301 run_status read **0** ("Standby"), not 8 (bridge session's
+# measurement with the owner present, aGate X-01-AU, IBG V12R02B60D00, 2026-10-23
+# 22:57 AEDT, bridge issue #311). Turning it off returned run_status to 2.
+#
+# So on that site and firmware, run_status does NOT report Debug Mode, and anything
+# deciding "is Debug Mode on" from run_status == 8 would have missed it. Read 1821
+# ``enable`` instead - see ``client.debug_mode()``.
+#
+# 8 is NOT removed: one site on one firmware is not enough to say the cloud vocabulary is
+# wrong, and no reading has yet shown what DOES produce an 8. Both halves are recorded
+# here deliberately rather than quietly picking one.
 
 
 #: Per-device state enums, matching ``franklinwh_cloud.const.states`` exactly so the

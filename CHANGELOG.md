@@ -36,7 +36,9 @@ uses [Semantic Versioning](https://semver.org/).
 
 - **Debug Mode is no longer an unknown command.** `1821` is the installer app's
   **Tools → Debug Mode**, confirmed by write and read-back on one site (aGate X-01-AU,
-  IBG V12R02B60D00, 2026-10-23). New `client.debug_mode()` and
+  IBG V12R02B60D00, 2026-10-23) — **the Direct Connect Bridge session's measurement**
+  with the owner present, recorded on that repository's issue #311, and **not verified
+  independently by this library**. New `client.debug_mode()` and
   `client.set_debug_mode(on)` — the write **verifies by reading `1821` back** and reports
   `verified: False` rather than raising when the gateway acknowledges a write it did not
   apply, because `result: 0` is not proof on this protocol. New CLI command
@@ -47,6 +49,14 @@ uses [Semantic Versioning](https://semver.org/).
   entry, the write note, the CLI and the docs all say so.
 
 ### Changed
+
+- **`run_status` 8 ("Debug Mode") now carries the conflict that contradicts it.** The
+  label comes from the cloud's vocabulary; the one local measurement of Debug Mode read
+  `run_status` **0**, not 8, while Debug Mode was definitively on. Anything detecting
+  Debug Mode from `run_status == 8` would have missed that state — read `1821` `enable`
+  instead. `8` is kept in the map, because one site on one firmware is not grounds to
+  call the cloud vocabulary wrong and nothing has yet shown what does produce an 8.
+
 
 - **`1701`'s grid power-plane limits: what is known, by condition.** A `kwRatePower` /
   `gridSoftLimit` write **stored and read back** with Debug Mode on (V12R02B60D00), where
