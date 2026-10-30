@@ -335,3 +335,55 @@ def test_sweep_without_reconnect_still_completes():
 
     results = probe.probe_codes(_Dead(), [1501], [{"opt": 0}])
     assert results[0].status == "error"
+
+
+# -- serial discovery shapes -------------------------------------------------
+class _ManifestClient:
+    """Stands in for the client's two serial sources with a fixed manifest.
+
+    Not an emulator: the point is the SHAPE of the manifest values, which no
+    capture in this repo pins down (DEF-NO-1102-CAPTURE), so the emulator cannot
+    be the authority for it either. These tests fix our handling, not the wire.
+    """
+
+    def __init__(self, manifest: dict, dev_map: list | None = None):
+        self._manifest = manifest
+        self._dev_map = dev_map or []
+
+    def battery_modules(self) -> dict:
+        return {"devMap": self._dev_map}
+
+    def firmware(self) -> dict:
+        return dict(self._manifest)
+
+
+def test_discover_serials_collects_list_valued_fhp_sn():
+    """A list-valued FHP_SN yields every aPower serial, not none of them.
+
+    `_add` accepted strings only, so the aPower serials were dropped silently —
+    while this package's own emulator and fallback both send FHP_SN as a list
+    (DEF-PROBE-SERIAL-LIST-DROPPED).
+    """
+    client = _ManifestClient({"FHP_SN": ["SN-A", "SN-B"], "BMS_SN": "BMS-1"})
+    assert probe.discover_serials(client) == ["SN-A", "SN-B", "BMS-1"]
+
+
+def test_discover_serials_still_accepts_a_scalar_fhp_sn():
+    """Whether the real 1102 sends a scalar is unverified, so keep handling both."""
+    client = _ManifestClient({"FHP_SN": "SN-A", "BMS_SN": "BMS-1"})
+    assert probe.discover_serials(client) == ["SN-A", "BMS-1"]
+
+
+def test_discover_serials_skips_junk_and_deduplicates():
+    """Failure paths: non-strings, blanks, None and repeats inside a list."""
+    client = _ManifestClient(
+        {"FHP_SN": ["SN-A", "", None, 42, {"nope": 1}, "SN-A", "SN-B"], "BMS_SN": None},
+        dev_map=[{"devSN": "SN-A"}, {"devSN": "SN-C"}, {"no_sn": True}, "not-a-dict"],
+    )
+    # devMap first, then the manifest; each serial once, junk dropped.
+    assert probe.discover_serials(client) == ["SN-A", "SN-C", "SN-B"]
+
+
+def test_discover_serials_empty_when_nothing_reports():
+    client = _ManifestClient({})
+    assert probe.discover_serials(client) == []

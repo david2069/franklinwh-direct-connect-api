@@ -112,7 +112,7 @@ class Emulator:
         if resp_cmd == 1726:
             return site.mode_list(now)
         if resp_cmd == 1102:
-            return site.login_manifest()
+            return site.login_manifest(self.units)
         if resp_cmd == 1404:
             return site.mode_config(now)
         if resp_cmd == 1708:

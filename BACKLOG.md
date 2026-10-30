@@ -5,6 +5,133 @@ Status: `queued` → `planned` → `in-progress` → `done`.
 
 ---
 
+## DEF-VERSION-DRIFT — `__version__` says 0.4.0 while the distribution is 0.5.0
+
+**Severity:** S2 (wrong value reported, no workaround in-process) · **Status:** QUEUED · **Filed:** 2026-10-31 · **Area:** packaging
+
+`franklinwh_direct_connect_api/__init__.py:58` hardcodes `__version__ = "0.4.0"`;
+`pyproject.toml:9` says `version = "0.5.0"`, which is what is on PyPI. Anything reading
+the version from the import package — a bridge logging its library version, a bug report,
+`health` output — reports a release that is one behind.
+
+The two are maintained by hand, so this drifts again at every release. The existing test
+(`tests/test_deprecated_alias.py:42`) only asserts the alias package agrees with the
+canonical one, so it cannot catch it.
+
+**Fix:** derive it once from the installed metadata —
+`__version__ = importlib.metadata.version("franklinwh-direct-connect-api")` with a
+fallback for a source tree that was never installed — and add a test asserting it matches
+`pyproject.toml`. **Regression risk:** low. Not fixed in the 2026-10-31 manifest batch
+deliberately: it is packaging, a different area, and the policy is not to chain fixes.
+
+---
+
+## DEF-PYPROJECT-STALE-COMMENT — the packaging comment describes the pre-0.4.0 names
+
+**Severity:** S4 (comment only) · **Status:** QUEUED · **Filed:** 2026-10-31 · **Area:** packaging
+
+`pyproject.toml:5-6` reads "the import package stays `franklinwh_local` and the CLI
+command stays `franklinwh-local`". Both were renamed in 0.4.0 (commit e2c47cc,
+2026-10-08): the import package is `franklinwh_direct_connect_api` and the CLI is
+`franklinwh-direct-connect`. `LocalClient` survives as a class alias, but the package and
+command names in this comment are simply wrong now, and it sits directly above the
+distribution name where someone would go looking for exactly this.
+
+**Fix:** reword to describe the aliases that do remain. **Regression risk:** none.
+
+---
+
+## DEF-PROBE-SERIAL-LIST-DROPPED — `discover_serials` silently drops a list-valued `FHP_SN`
+
+**Severity:** S2 (broken, workaround exists) · **Status:** DONE (2026-10-31) · **Filed:** 2026-10-31 · **Area:** probe
+
+`probe.discover_serials()` (`probe.py:235-262`) collects serials through a helper that
+accepts strings only:
+
+```python
+def _add(value: Any) -> None:
+    if isinstance(value, str) and value and value not in serials:
+        serials.append(value)
+...
+for key in ("FHP_SN", "BMS_SN"):
+    _add(manifest.get(key))
+```
+
+`FHP_SN` is treated as a **list** everywhere else in this package —
+`emulator.py:34-35` serves `"FHP_SN": ["FAKEAPOWER…"]` beside `"FHP_NUM": 1`, and
+`synthetic.py:250` emits `"FHP_SN": [self.fhp_serial]`. When it is a list, `_add`
+matches nothing and the aPower serials are dropped with no error and no warning.
+
+Measured in-process 2026-10-31 (no hardware): a stub manifest of
+`{"FHP_SN": ["SN-A", "SN-B"], "BMS_SN": "BMS-1"}` yields `['BMS-1']`.
+
+**Not evidence of the wire shape.** Whether the real 1102 sends `FHP_SN` as a list or a
+scalar is unverified here — there is no 1102 frame in this repo (see
+[[DEF-NO-1102-CAPTURE]]). The defect stands either way, because two components of this
+package already disagree with each other.
+
+**Fix:** flatten list/tuple values in `_add` (recurse one level), keeping the
+string path. **Regression risk:** low — one private helper, additive.
+**Workaround:** `--serial SN` (repeatable), already documented at `docs/USAGE.md:646`.
+
+---
+
+## DEF-EMULATOR-1102-FHPNUM-HARDCODED — the mock's login manifest always claims one aPower
+
+**Severity:** S3 (mock fidelity) · **Status:** DONE (2026-10-31) · **Filed:** 2026-10-31 · **Area:** emulator
+
+`SyntheticSite.login_manifest()` (`synthetic.py:243-258`) hardcodes `"FHP_NUM": 1` and a
+single-element `"FHP_SN": [self.fhp_serial]`, ignoring how many aPowers the site has.
+`device_check(units)` (`synthetic.py:491-496`) does scale — `devNum: units` plus a
+`devMap` row per unit via `apower_serial(i + 1)`.
+
+So a multi-aPower mock site is self-contradictory: 1106 reports N units, 1102 reports 1.
+Anything deriving unit count from the login manifest sees a single-aPower site while the
+roster shows several.
+
+Consequence beyond the mock: this package holds **no** multi-aPower 1102, real or
+synthetic, so nothing here can be used to reason about the multi-unit manifest shape.
+
+**Fix:** derive `FHP_NUM` and the `FHP_SN` list from the site's aPower count, reusing
+`apower_serial()` so the two cmdTypes agree. **Regression risk:** low-medium — tests
+assert `manifest["IBG_SN"]`, not `FHP_SN`, but bridge-side consumers may read `FHP_NUM`.
+
+---
+
+## DEF-NO-1102-CAPTURE — no login-manifest capture exists; field shapes are unverified
+
+**Severity:** S4 (research gap) · **Status:** QUEUED · **Filed:** 2026-10-31 · **Area:** docs / protocol
+
+`docs/PROTOCOL.md:113` describes the 1102 reply as carrying "IBG_SN, FHP_SN, BMS_SN,
+PE_SN, all `*_VER`", and `client.FIRMWARE_FIELDS` (`client.py:127-131`) names 17 fields.
+**Neither states which are per-aPower lists and which are scalars, and this repo holds no
+capture that would settle it.**
+
+Checked 2026-10-31 across all refs: the only capture in the tree or in history is
+`tests/fixtures/smoke.pcap` (added 2026-10-09), which decodes to exactly four frames —
+1301, 1725, 1302, 1726 — and is emulator output (`equip_no` `FAKEGATE…`), not a site
+capture. A real reference 1102 did exist (`emulator.py:50-53` skips serving it because it
+"carries the real IBG_SN/FHP_SN from the reference capture"), but the pre-scrub captures
+were removed from the tree on 2026-09-20 (see DEF-SERIAL-SCRUB) and are not in this
+repo's history.
+
+What is therefore **unverified** for the real device:
+
+- whether `FPGA_VER`, `DCDC_VER`, `INV_VER`, `BMS_VER`, `BL_VER`, `TH_VER`, `BMS_SN` and
+  `PE_SN` are per-aPower lists or scalars — this package never emits six of them at all;
+- whether `SUNSPEC_FW` is a 1102 key — it appears nowhere in this repo;
+- the multi-aPower manifest shape (see [[DEF-EMULATOR-1102-FHPNUM-HARDCODED]]).
+
+`FIRMWARE_FIELDS` is a flat key filter and `firmware()` passes values through verbatim
+(`client.py:140`), so the code asserts no shape either way — the flat tuple must not be
+read as a claim that these fields are scalar.
+
+**Resolving it needs one live 1102 off the reference aGate**, recorded with the firmware
+version, the shapes noted and the serials masked. Owner-coordinated; not scheduled.
+Asked by the FranklinWH Gateway Emulator session 2026-10-31; answered as unverified.
+
+---
+
 ## DEF-CLI-HELP-SUPPRESS — `--help` prints `==SUPPRESS==` for every per-cmdType subcommand
 
 **Severity:** S3 (cosmetic) · **Status:** QUEUED · **Filed:** 2026-10-15 · **Area:** CLI
