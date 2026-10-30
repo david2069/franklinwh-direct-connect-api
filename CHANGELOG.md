@@ -8,6 +8,14 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Documentation
 
+- **The comparison document no longer claims the bridge's features as this library's.**
+  Two rows credited this package with a Home Assistant integration and a "reference
+  application" — both belong to the separate Direct Connect Bridge, and were a leftover of
+  an abandoned plan to ship everything in one package. The table also had the PyPI-names
+  note spliced into the middle of it, splitting it in two. Every number left in it (54
+  client methods, 70 cmdTypes, 87 CLI subcommands, 59 docstring blocks, 6 writes) is now
+  checked against the code by a test.
+
 - **The disclaimer, warnings and licence terms now match the Direct Connect Bridge's.**
   `LICENSE` gains Additional Terms (unofficial / no affiliation, compliance &
   anti-circumvention, intent & risk, notice), scoped to the Direct Connect protocol on
