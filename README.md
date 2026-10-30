@@ -39,10 +39,52 @@ voltages, relay/contactor states, full physics arrays), plus configuration and c
 (operating mode, off-grid, reboot) — things neither a plain Modbus read nor the cloud expose
 together in one place.
 
+## ⚖️ Disclaimer
+
+> **UNOFFICIAL SOFTWARE — NOT AFFILIATED WITH OR ENDORSED BY FRANKLINWH.**
+>
+> This library speaks FranklinWH's undocumented **Direct Connect** (local) protocol on
+> **TCP/9000** — technically the **same private channel the official FranklinWH mobile app**
+> uses, intended for that app and not for third-party use. It may change, break, or become
+> unavailable without notice. It is provided **AS-IS**, without warranty of any kind, express
+> or implied — use entirely at your own risk. The authors accept no liability for service
+> interruptions, data loss, equipment damage, or any other consequences of using this
+> software.
+>
 > **On the name "Direct Connect":** the official FranklinWH app uses this label for the local
 > interface; this project adopts the term **purely to identify the same channel**. It implies
 > **no affiliation with, endorsement by, or support from FranklinWH** — this is unofficial,
-> reverse-engineered software, provided as-is.
+> reverse-engineered software.
+>
+> **Do NOT contact FranklinWH support** about this software. Raise issues, defects, or feature
+> requests on GitHub instead:
+> <https://github.com/david2069/franklinwh-direct-connect-api/issues>
+
+### Compliance & anti-circumvention
+
+> You agree to keep your gateway and battery settings, controls, and operation compliant with
+> the configuration set through the official FranklinWH Mobile App and the installer/support
+> FleetView portal.
+>
+> FranklinWH-managed settings may exist to, among other things: protect the **safety and
+> longevity** of the battery and gateway; apply **automatic software updates** and restrict
+> your ability to view or change battery, grid-import, or grid-export controls; enforce your
+> **local grid profile** and any import/export limits or prohibitions; and enforce
+> restrictions tied to **contractual incentives, subsidies, or VPP/grid programmes**.
+>
+> If you use this software to bypass or override any such control, restriction, or compliance
+> measure — deliberately or inadvertently — you do so **entirely at your own risk**. This is
+> neither condoned nor encouraged by the authors or any other party.
+>
+> This software is provided for **informational and educational purposes**, **AS-IS**, with no
+> warranty of fitness for any purpose. Any use — personal or commercial — is permitted under
+> the MIT License and is entirely at your own risk.
+>
+> As the MIT License requires, the copyright notice and this notice (including the Additional
+> Terms) should be included in copies or substantial portions of the software — in forks,
+> derivatives, and AI-assisted works alike, so the unofficial-app and compliance context
+> travels with the code. See [`LICENSE`](LICENSE) (Additional Terms) for the authoritative
+> text.
 
 **Docs:** <https://david2069.github.io/franklinwh-direct-connect-api/> — [Usage](https://david2069.github.io/franklinwh-direct-connect-api/USAGE/) (full how-to) · [Protocol & catalog](https://david2069.github.io/franklinwh-direct-connect-api/PROTOCOL/) (wire format + command catalog) · [API reference](https://david2069.github.io/franklinwh-direct-connect-api/API/). The same pages as markdown: [`docs/`](docs/).
 
@@ -249,6 +291,14 @@ per poll — a friendly summary for `power_flow`, compact JSON otherwise.
 
 ## Control (live writes)
 
+> ⚠️ **These commands change a live energy system.** Operating mode, off-grid/island state
+> and reboot all take effect on real hardware immediately, and some are not visibly reversible
+> from this library alone. Read
+> [Compliance & anti-circumvention](#compliance--anti-circumvention) before using them, and
+> **confirm every change in the official FranklinWH app** afterwards — the app is the
+> authoritative view of what your gateway is actually doing, and a write that this library
+> reports as accepted is not proof the device applied it.
+
 Confirmed working over LAN TCP/9000 (no SPAN unlock, no cloud) — see
 [`catalog.WRITES`](franklinwh_direct_connect_api/catalog.py) and `docs/PROTOCOL.md`. The CLI
 shape mirrors the sibling tools: `-i/--ip` for the aGate (as in
@@ -369,6 +419,12 @@ LAN path can read and forge frames. Decoded payloads expose WiFi credentials,
 device serials, firmware versions, and GPS/location. Treat the network segment
 accordingly.
 
+**Before you attach anything to an issue.** Packet captures, `.pcap` files and the output of
+`--raw`, `proxy` and `probe` contain those same values in clear — WiFi credentials, serial
+numbers, firmware versions and your location. **Redact them first**: replace serials and
+MACs with placeholders, and use the documentation address ranges (`192.0.2.x`) rather than
+your own. A capture posted to a public issue is a capture published.
+
 ## Layout
 
 ```
@@ -392,4 +448,6 @@ docs/            the published guide (mkdocs): USAGE, PROTOCOL, API, CLOUD_MAPPI
 
 ## License
 
-MIT. Unofficial and not affiliated with or endorsed by FranklinWH.
+MIT, plus **Additional Terms** — unofficial and not affiliated with or endorsed by
+FranklinWH, with a compliance and anti-circumvention clause. See [`LICENSE`](LICENSE) for the
+authoritative text and [Disclaimer](#️-disclaimer) for the readable version.

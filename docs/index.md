@@ -18,7 +18,7 @@ lower-level device↔broker channel that the cloud `sendMqtt` REST relay (see
 
     It is provided **"AS IS"**, for **informational and educational purposes**, without warranty of any
     kind, express or implied, including but not limited to warranties of merchantability or **fitness for
-    any particular purpose**. Any use — personal or commercial — is permitted under the MIT Licence and is
+    any particular purpose**. Any use — personal or commercial — is permitted under the MIT License and is
     entirely at your own risk. The author(s) and contributor(s) accept
     **no responsibility or liability** for any consequences of its use — data loss, equipment damage, or
     otherwise.
@@ -31,8 +31,24 @@ lower-level device↔broker channel that the cloud `sendMqtt` REST relay (see
     - You will use it responsibly and keep your gateway/grid settings compliant with the official FranklinWH
       app and installer configuration
 
+    **Compliance & anti-circumvention.** FranklinWH-managed settings may exist to, among other things:
+
+    - protect the **safety and longevity** of the battery and gateway;
+    - apply **automatic software updates**, and restrict your ability to view or change battery,
+      grid-import or grid-export controls;
+    - enforce your **local grid profile** and any import/export limits or prohibitions;
+    - enforce restrictions tied to **contractual incentives, subsidies, or VPP/grid programmes**.
+
+    Using this software to bypass or override any such control, restriction or compliance measure —
+    deliberately or inadvertently — is **entirely at your own risk**, and is neither condoned nor
+    encouraged by the authors or any other party.
+
     **Do NOT contact FranklinWH support** about this software — raise issues on GitHub:
-    <https://github.com/david2069/franklinwh-direct-connect-api/issues>. **MIT Licence.**
+    <https://github.com/david2069/franklinwh-direct-connect-api/issues>.
+
+    **MIT License**, plus
+    [Additional Terms](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/LICENSE)
+    — the authoritative text.
 
 ## Why this exists
 

@@ -6,7 +6,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Nothing yet.
+### Documentation
+
+- **The disclaimer, warnings and licence terms now match the Direct Connect Bridge's.**
+  `LICENSE` gains Additional Terms (unofficial / no affiliation, compliance &
+  anti-circumvention, intent & risk, notice), scoped to the Direct Connect protocol on
+  TCP/9000. The README gains a full **Disclaimer** section — folding in the note about the
+  "Direct Connect" name — a stronger warning on **Control (live writes)** pointing at the
+  compliance terms and telling people to confirm every change in the official app, and a
+  redaction warning on the **Security note**: captures, `.pcap` files and `--raw` / `proxy`
+  / `probe` output carry WiFi credentials, serials and location in clear.
 
 ## [0.5.0] — 2026-10-15
 
