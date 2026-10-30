@@ -1291,6 +1291,22 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f"transient reconnect-retries per request/login "
                         f"(default {DEFAULT_RETRIES}; raise for flaky wifi)")
 
+    g = p.add_argument_group(
+        "wire logging",
+        "Append every request and response frame to a file, the 1101/1102 login "
+        "included. Redacted, truncated and size-capped, so it is safe to leave on.")
+    g.add_argument("--wire-log", metavar="PATH",
+                   help="log all frames to PATH as JSON lines (one object per frame)")
+    g.add_argument("--wire-log-raw", action="store_true",
+                   help="do NOT redact. Writes WiFi passwords, serials, MACs and the "
+                        "site's coordinates in clear. For a log you will read and "
+                        "delete yourself -- never one you attach or ship")
+    g.add_argument("--wire-log-max-bytes", type=int, default=1_048_576, metavar="N",
+                   help="rotate at N bytes (default 1048576 = 1 MiB)")
+    g.add_argument("--wire-log-backups", type=int, default=3, metavar="N",
+                   help="keep N rotated files, so total disk use never exceeds "
+                        "max-bytes x (N+1) (default 3, i.e. a 4 MiB ceiling)")
+
     sub = p.add_subparsers(dest="command", required=True, metavar="<command>")
 
     d = sub.add_parser("decode", help="decode frames from a pcap file")
@@ -1642,7 +1658,35 @@ def main(argv: list[str] | None = None) -> int:
     if getattr(args, "date", None) is None:
         import datetime as _dt
         args.date = _dt.date.today().isoformat()
-    return args.func(args)
+
+    wire = None
+    if getattr(args, "wire_log", None):
+        from . import wirelog
+        wire = wirelog.WireLog(args.wire_log, raw=args.wire_log_raw,
+                               max_bytes=args.wire_log_max_bytes,
+                               backups=args.wire_log_backups).open()
+        wirelog.set_default(wire)
+        if args.wire_log_raw:
+            # Loud, on stderr, every run -- a raw log holds the WiFi password and the
+            # site's coordinates, and the person who enabled it may not be the person
+            # who finds the file later.
+            print(f"WARNING: --wire-log-raw writes UNREDACTED secrets (WiFi password, "
+                  f"serials, MAC, latitude/longitude) to {args.wire_log}. "
+                  f"Delete it when done; never attach it to an issue.", file=sys.stderr)
+        print(f"wire log: {args.wire_log} "
+              f"(max {wire.max_total_bytes // 1024} KiB across "
+              f"{args.wire_log_backups + 1} files"
+              f"{', UNREDACTED' if args.wire_log_raw else ', redacted'})",
+              file=sys.stderr)
+    try:
+        return args.func(args)
+    finally:
+        if wire is not None:
+            from . import wirelog
+            print(f"wire log: {wire.records} frames, {wire.rotations} rotation(s), "
+                  f"{wire.total_bytes()} bytes on disk", file=sys.stderr)
+            wirelog.set_default(None)
+            wire.close()
 
 
 if __name__ == "__main__":

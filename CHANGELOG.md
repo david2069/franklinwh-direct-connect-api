@@ -6,6 +6,32 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **A request/response wire log you can safely leave switched on.** `--wire-log PATH`
+  appends every frame this library sends or receives to a JSON-lines file, the
+  `1101`/`1102` login included, with the catalogue name, the round-trip time in
+  milliseconds, and timeouts recorded as their own entry so a missing reply is visible
+  rather than implied. In code: `DirectConnectClient(host, wire_log=WireLog("wire.jsonl"))`.
+
+  Three things make leaving it on reasonable:
+
+  - **It redacts by default.** These payloads carry WiFi passwords, device serials, MAC
+    addresses and the site's latitude, longitude and postcode. Sensitive values become
+    `<redacted:N>`, keeping the length — and **keeping the container shape**, so a list of
+    one is still a list and not mistakable for a one-character string. Any field ending
+    `_SN` is treated as a serial even if unknown. `--wire-log-raw` opts out and warns
+    loudly on every run.
+  - **It truncates.** Long arrays (per-cell reads) and long strings are clipped with a
+    marker saying how much was dropped, so a clipped payload cannot be mistaken for a
+    short one.
+  - **It cannot fill a disk.** `--wire-log-max-bytes` × (`--wire-log-backups` + 1) is a
+    hard ceiling — 4 MiB by default. Rotation happens *before* a write that would exceed
+    the cap, and the oldest file is deleted rather than accumulated.
+
+  A logging failure never propagates: a broken log must not cost a device call.
+
+
 ### Documentation
 
 - **The comparison document no longer claims the bridge's features as this library's.**

@@ -55,8 +55,15 @@ class DirectConnectClient:
     """
 
     def __init__(self, host: str, port: int = 9000, *, timeout: float = DEFAULT_TIMEOUT,
-                 retries: int = DEFAULT_RETRIES, equip_no: str | None = None):
-        self.transport = DirectConnectTransport(host, port, timeout=timeout, retries=retries)
+                 retries: int = DEFAULT_RETRIES, equip_no: str | None = None,
+                 wire_log: Any | None = None):
+        """``wire_log``: an optional :class:`~franklinwh_direct_connect_api.WireLog`.
+
+        Every frame this client sends or receives is appended to it, the 1101/1102 login
+        included. Redacted, truncated and size-capped by default -- see that class.
+        """
+        self.transport = DirectConnectTransport(host, port, timeout=timeout,
+                                                retries=retries, wire_log=wire_log)
         self._equip = equip_no
 
     # -- lifecycle -----------------------------------------------------------

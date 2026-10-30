@@ -54,6 +54,7 @@ from .transport import DirectConnectTransport, TransportError
 from .discover import HostResult, expand_targets, scan
 from .emulator import Emulator
 from .proxy import log_frame, serve as proxy_serve
+from .wirelog import SENSITIVE_FIELDS, WireLog, redact
 
 __version__ = "0.4.0"
 
@@ -94,5 +95,8 @@ __all__ = [
     "expand_targets",
     "proxy_serve",
     "log_frame",
+    "WireLog",
+    "SENSITIVE_FIELDS",
+    "redact",
     "__version__",
 ]
