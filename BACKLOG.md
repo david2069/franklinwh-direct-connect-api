@@ -5,6 +5,48 @@ Status: `queued` → `planned` → `in-progress` → `done`.
 
 ---
 
+## DEF-VERSION-DRIFT — `__version__` said 0.4.0 while the distribution was 0.5.0
+
+**Severity:** S2 (wrong value reported, no workaround in-process) · **Status:** DONE (2026-10-31) · **Filed:** 2026-10-31 · **Area:** packaging
+
+`__init__.py` hardcoded `__version__ = "0.4.0"` while `pyproject.toml` declared `0.5.0`,
+which is what is on PyPI. Anything reading the version from the import package — a bridge
+logging its library version, a bug report, `health` output — reported a release behind.
+Both were maintained by hand, so it drifted at every release, and the only version
+assertion in the suite (`test_deprecated_alias.py`) just checked the alias package agreed
+with the canonical one, so it could not catch it.
+
+This environment showed the same drift from the other direction: the venv held three
+stale `.dist-info` entries for this project (`franklinwh-direct-connect-api` 0.4.0,
+plus the pre-rename `franklinwh-local-api` 0.3.0 and `franklinwh-local` 0.1.0), because
+the editable install was never refreshed after the version bumps.
+
+**Fixed:** `pyproject.toml` is the single source; the package reads it back with
+`importlib.metadata.version()`, falling back to `0.0.0+unknown` only for a source tree
+that was never installed. `tests/test_version.py` asserts the reported version equals the
+declared one, comes from distribution metadata rather than a literal, and is not the
+fallback — verified to fail with the literal restored.
+
+**Left alone:** the two pre-rename distributions still installed in this venv are a local
+environment wart, not repo state. `pip uninstall franklinwh-local-api franklinwh-local`
+clears them if they ever shadow anything.
+
+---
+
+## DEF-PYPROJECT-STALE-COMMENT — the packaging comment described the pre-0.4.0 names
+
+**Severity:** S4 (comment only) · **Status:** DONE (2026-10-31) · **Filed:** 2026-10-31 · **Area:** packaging
+
+`pyproject.toml` read "the import package stays `franklinwh_local` and the CLI command
+stays `franklinwh-local`". Both were renamed in 0.4.0 (commit e2c47cc, 2026-10-08): the
+import package is `franklinwh_direct_connect_api` and the CLI is
+`franklinwh-direct-connect`. The old spellings survive only as aliases — the
+`franklinwh_local` shim and the `LocalClient` class name — not as the real names, and the
+comment sat directly above the distribution name where someone would look for exactly
+this. **Fixed:** reworded to describe the aliases that do remain.
+
+---
+
 ## DEF-CLI-HELP-SUPPRESS — `--help` prints `==SUPPRESS==` for every per-cmdType subcommand
 
 **Severity:** S3 (cosmetic) · **Status:** QUEUED · **Filed:** 2026-10-15 · **Area:** CLI

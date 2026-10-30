@@ -6,6 +6,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`__version__` no longer reports a release behind the one you installed.** It was a
+  hand-maintained literal reading `0.4.0` while the published distribution was `0.5.0`,
+  so anything logging the library version — a bridge recording its dependency, a bug
+  report, `health` output — named the wrong release. `pyproject.toml` is now the single
+  source and the package reads it back from its installed distribution metadata, with a
+  test that fails if the two ever diverge again.
+
+
 ### Documentation
 
 - **The comparison document no longer claims the bridge's features as this library's.**
