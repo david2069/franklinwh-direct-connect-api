@@ -150,7 +150,7 @@ To find every remaining use, run with `PYTHONWARNINGS=error::DeprecationWarning`
 
 For a ready-made application built on this library — REST API, MQTT / Home Assistant
 entities and a web UI — see the
-[FranklinWH Direct Connect Bridge](https://github.com/david2069/franklinwh-local-bridge).
+[FranklinWH Direct Connect Bridge](https://github.com/david2069/franklinwh-direct-connect-bridge).
 
 Everything below assumes the venv is activated. Offline commands
 (`catalog`, `decode`, `analyze`, `emulate`) need no hardware — start with

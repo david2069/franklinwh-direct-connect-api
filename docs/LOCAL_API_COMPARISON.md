@@ -15,6 +15,19 @@ differs. They are **not** forks of each other.
 | Focus | full data layer + control + tooling + emulator | transport + command table |
 | Client methods | 54 public methods (0.4.0) | ~10 |
 | Device capabilities covered | 70 cmdTypes catalogued, most with hardware-verified semantics (5 are marked UNCONFIRMED) | 44-command table (names/opcodes) |
+| Reads (battery cells, PE, energy, TOU, generator…) | ✅ deep | ⚠️ a few high-level queries |
+| Writes / control (mode, circuits, generator, off-grid, DER) | ✅ six writes, most self-verifying (see the caveat below) | ⚠️ SunSpec-Modbus enable only |
+| Emulator / mock aGate | ✅ dynamic, multi-aPower | ❌ |
+| LAN discovery / scan | ✅ | ❌ |
+| CLI | ✅ 87 subcommands (16 purpose-built + one per cmdType) | ❌ |
+| Docstrings & worked examples | ✅ rich (59 docstring blocks in `client.py` alone) | ✅ README example |
+| Documentation | layered (usage/API/mapping) + verified catalog | one excellent protocol README |
+
+Neither library has a Home Assistant integration, a REST API or a web UI. Those live in a
+**separate** project, the [Direct Connect
+Bridge](https://github.com/david2069/franklinwh-direct-connect-bridge), which is built *on*
+this library. An earlier plan put all of it in one package; that was never built, and the
+rows claiming it here were a leftover of that plan rather than a description of this code.
 
 ### A note on similar PyPI names
 
@@ -35,15 +48,6 @@ This matters because the obvious assumption is wrong: the rename to
 there is nothing on PyPI to deprecate, yank or point elsewhere. A plan to publish a
 "renamed →" pointer release for `franklinwh-local` was written and then abandoned for
 exactly this reason — it is someone else's project. Do not retry it.
-| Reads (battery cells, PE, energy, TOU, generator…) | ✅ deep | ⚠️ a few high-level queries |
-| Writes / control (mode, circuits, generator, off-grid, DER) | ✅ six writes, most self-verifying (see the caveat below) | ⚠️ SunSpec-Modbus enable only |
-| Emulator / mock aGate | ✅ dynamic, multi-aPower | ❌ |
-| LAN discovery / scan | ✅ | ❌ |
-| CLI | ✅ 87 subcommands (16 purpose-built + one per cmdType) | ❌ |
-| Docstrings & worked examples | ✅ rich (59 docstring blocks in `client.py` alone) | ✅ README example |
-| **Reference application** (real-world) | ✅ a full-stack bridge (separate repo) | ❌ |
-| Home-Assistant integration | ✅ MQTT discovery + REST — via the companion bridge, not this library | ❌ |
-| Documentation | layered (usage/API/mapping) + verified catalog | one excellent protocol README |
 
 **TL;DR** — this library is a complete functional stack for *operating* the aGate;
 voidstarr's is a compact, well-documented transport core. The protocol itself is
@@ -102,7 +106,11 @@ discards. See [the table in USAGE](USAGE.md#writes-from-the-library).
 * **CLI** — 16 purpose-built subcommands (`battery`, `mode`, `tou`, `energy_rollup`,
   `grid_profile`, `der_comms`, `scan`, `health`, `emulate`, `probe`, …) plus one
   generated per catalogued cmdType — 87 in total on 0.4.0.
-* **Home-Assistant bridge** — the companion `franklinwh-direct-connect-bridge`.
+
+Not in this library, and listed here only because people look for it: Home Assistant
+entities, MQTT discovery, a REST API and a web UI are the
+[Direct Connect Bridge](https://github.com/david2069/franklinwh-direct-connect-bridge)'s,
+a separate application built on this library.
 
 voidstarr provides `LocalClient` with ~10 query helpers plus `set_sunspec_modbus`, and
 raw `request()` for anything else — a solid base to build on, but the functional
