@@ -65,6 +65,7 @@ class Cmd(IntEnum):
     MODE_LIST = 1725             # -> 1726 operating-mode list (id, name, reserved_soc)
     MODE_PAGE = 1727             # -> 1728 list keep-alive; opt=3 SETS the active mode
     BATTERY_INHIBIT = 1801       # -> 1802 battery inhibit SoC thresholds: inhSocNormal/Cold
+    DEBUG_MODE = 1821            # -> 1822 Debug Mode enable (installer Tools -> Debug Mode)
     IBG_STATE = 1827             # -> 1828 IBG DSP/main state, firmware, uptime
     EVENT_BLOCK = 1829           # -> 1830 indexed data/event block
     BATTERY_MODULES = 1831       # -> 1832 battery module list: devNum, devMap[{id, devSN}]
@@ -129,7 +130,7 @@ CATALOG: dict[int, CmdInfo] = {
     1835: CmdInfo(1835, 1836, "device_states", "Per-device state block: ibgDspState, ibgMainState (programme id), peState, bmsState. REQUIRES id. Split across two cloud calls: ibgDspState/ibgMainState correspond to dspRunStatus/ibgRunStatus from get_power_info() (211 type 1), and bmsState to bms_work from get_stats() (203 runtimeData). peState has no identified cloud field."),
     1501: CmdInfo(1501, 1502, "firmware_deliver", "OTA file-delivery status: fileName, order, operator, deliverResult. Discovered by probe sweep 2026-09-11; idle state returns result=1 reason=5 with empty strings. READ ONLY — an opt=1 write would push a firmware file. Never attempted."),
     1503: CmdInfo(1503, 1504, "firmware_upgrade", "OTA upgrade status: fileName, order, sign, type, steps, upgradeResult. Discovered by probe sweep 2026-09-11; idle state returns result=1 reason=8, steps=4. READ ONLY — an opt=1 write would trigger a firmware upgrade. Never attempted."),
-    1701: CmdInfo(1701, 1702, "install_profile", "Install/electrical profile: electricSys, electricSupply, airSwitchCur, gridPhase*, solarInstallState, genRatePower, solarInv*, fhpRatePower, ratedGridVolt/Hz, isThreePhaseInstall. NB (2026-09-22): on aGate X V10R01B04D00, fhpRatePower reads 0 and genRatePower/solarInvRatePower=0 here — 1701 is NOT a reliable source for the battery inverter's max charge/discharge kW. That value is DERIVED from Modbus SunSpec Model 702 (WChaRteMaxRtg/WDisChaRteMaxRtg = 5000W, confirmed from the raw register). Use Modbus 702 for the force Power(%) rating, not 1701. ALSO carries the grid POWER-PLANE limits: kwRatePower, gridSoftLimit, gridHardLimit (-1 = unlimited, the same convention as cloud globalGridChargeMax/DischargeMax), gridExportEnable, isPcsDischgEn. electricSupply is UNDECODED (observed 63 = 0b111111, possibly a capability bitfield; it is NOT the service amps - FWHAI reports service_amps=100, matching airSwitchCur)."),
+    1701: CmdInfo(1701, 1702, "install_profile", "Install/electrical profile: electricSys, electricSupply, airSwitchCur, gridPhase*, solarInstallState, genRatePower, solarInv*, fhpRatePower, ratedGridVolt/Hz, isThreePhaseInstall. NB: fhpRatePower and genRatePower/solarInvRatePower read 0 here (aGate X V10R01B04D00, 2026-09-22), so 1701 is NOT a source for the inverter's max charge/discharge kW — that comes from Modbus SunSpec 702. ALSO carries the grid POWER-PLANE limits: kwRatePower, gridSoftLimit, gridHardLimit (-1 = unlimited, the same convention as cloud globalGridChargeMax/DischargeMax), gridExportEnable, isPcsDischgEn. electricSupply is UNDECODED (observed 63; NOT the service amps - that is airSwitchCur). WRITING the power-plane limits: STORED with DEBUG MODE ON (V12R02B60D00, 2026-10-23, one site); acknowledged and NOT stored with it off on earlier firmware. Debug Mode vs firmware is NOT separated, and enforcement is untested - see docs/PROTOCOL.md 'Grid power-plane limits (1701)'."),
     1707: CmdInfo(1707, 1708, "ibg_run_status", "IBG run status: ibgRunStatus (programme id), name, energyMode [cloud: get_runtime_data()]"),
     1709: CmdInfo(1709, 1710, "relay_status", "Relay status: gridRelayAdhesion, gridRelayOpen, genRelayAdhesion, genRelayOpen [cloud: get_power_info()]"),
     1721: CmdInfo(1721, 1722, "device_control", "Device maintenance controls: reboot, reset, update (read-only by default; writing opt=1 would trigger these — DESTRUCTIVE, write UNVERIFIED)"),
@@ -137,9 +138,9 @@ CATALOG: dict[int, CmdInfo] = {
     1725: CmdInfo(1725, 1726, "mode_list", "Operating-mode list: current_id + list[{id, name, reserved_soc, scheduling_type(=cloud workMode), electricity_type}]. 'id' is a GATEWAY-SPECIFIC GUID permanently correlated to a scheduling_type (TOU=1, Self=2, Backup=3), so the two identify the same mode - ids are NOT portable between sites. This is also the only usable local read of reserved_soc (the 1405 block reads zeros)."),
     1727: CmdInfo(1727, 1728, "mode_page", "SET active mode: opt=3 + current_id (site-specific id from 1725/1726). ONLY opt=3 is implemented - opt 0,1,2,4,5,6,7 draw no reply at all (swept write-identical 2026-09-11), so there is no hidden opt carrying a reserve write. Reply is {opt,result} with no reason field. Extra fields (reserved_soc/soc/minSoc/selfMinSoc) are accepted with result:0, but that was tested write-identical so it does not prove they are applied. Use CLI subcommand 'mode' (or alias 'mode_page')."),
     1801: CmdInfo(1801, 1802, "battery_inhibit", "Battery charge-inhibit SoC thresholds: topSoc, inhSocNormal, inhSocCold, InhSocExtCold, normalTemp, coldTemp, extColdTemp, startHeatBatTemp, stopHeatBatTemp, batMaxChFactor, delayToChTime, blackStartOnOff, startGenSoc, stopGenSoc, InhUseFlag. CAUTION: on observed firmware the values read back as the sequential integers 0,1,2,...,14 - i.e. field POSITION, not real data. Treat this block as unpopulated until a site is found that returns plausible values."),
-    1821: CmdInfo(1821, 1822, "unknown_1821", "UNCONFIRMED: returns {enable}; purpose unknown"),
-    1823: CmdInfo(1823, 1824, "unknown_1823", "UNCONFIRMED: returns {powerOn, powerOff}, both 0. NOT the grid charge/discharge power limits — those live in install_profile (1701: kwRatePower, gridSoftLimit, gridHardLimit) and solar_pv (1903: grid_feed_max), all using the -1=unlimited convention these do not. LEAD: likely the software equivalent of the PHYSICAL aPower power switch (the System User Manual documents one per unit), matching the cloud TOU block's optional powerOffApower field; 1821 {enable} may be its enable flag. UNTESTED and potentially DESTRUCTIVE - a successful write may shut the battery down, with recovery possibly needing the physical switch. DO NOT WRITE remotely. See BACKLOG TEST-1823-APOWER-POWER (on-site test planned ~2026-09-26)."),
-    1825: CmdInfo(1825, 1826, "unknown_1825", "UNCONFIRMED: returns {power}, value 0. NOT a force-charge/discharge setpoint — the cloud has no sendMqtt code for that (force_charge/force_discharge build a TOU session; setPowerControl is REST), and the real power limits are in 1701/1903. Purpose still unknown."),
+    1821: CmdInfo(1821, 1822, "debug_mode", "Debug Mode enable — the installer app's Tools -> Debug Mode (Commissioning Guide AU & NZ, App v2.23.0, 2026-09-30, p.48). Returns {enable}: 1 on, 0 off. CONFIRMED by write and read-back on one site (aGate X-01-AU, IBG V12R02B60D00, 2026-10-23): enable 1 turned Debug Mode on and enable 0 turned it off, both read back. SAFETY: turning it ON STOPS NORMAL BATTERY OPERATION. Measured at 22:57 AEDT that day: self-consumption discharge stopped (battery 234 W -> about -42 W), the house moved to the grid (about 245 W) and 1301 run_status went 2 -> 0. Turn it off when finished; the same site restored normal discharge (247 W) on enable 0. One site, one firmware — not a mapping."),
+    1823: CmdInfo(1823, 1824, "unknown_1823", "UNCONFIRMED: returns {powerOn, powerOff}, both 0. The installer guide's Debug Mode screen offers an aPower on/off switch beside a charge/discharge kW field, so 1823 (aPower on/off) and 1825 (the kW value) are the obvious candidates — a LEAD from the guide's layout, not a reading. NOT the grid charge/discharge power limits — those live in install_profile (1701: kwRatePower, gridSoftLimit, gridHardLimit) and solar_pv (1903: grid_feed_max), all using the -1=unlimited convention these do not. LEAD: likely the software equivalent of the PHYSICAL aPower power switch (the System User Manual documents one per unit), matching the cloud TOU block's optional powerOffApower field; 1821 {enable} may be its enable flag. UNTESTED and potentially DESTRUCTIVE - a successful write may shut the battery down, with recovery possibly needing the physical switch. DO NOT WRITE remotely. See BACKLOG TEST-1823-APOWER-POWER (on-site test planned ~2026-09-26)."),
+    1825: CmdInfo(1825, 1826, "unknown_1825", "UNCONFIRMED: returns {power}, value 0. LEAD (not a reading): the installer app's Debug Mode screen sets Charge/Discharge with a \'Current power (kW)\' value, and 1821 is now confirmed as the Debug Mode enable — so 1825 may hold that kW figure. Reading it while the owner sets a value in the app would settle it; until someone does, the value below stands. NOT a force-charge/discharge setpoint — the cloud has no sendMqtt code for that (force_charge/force_discharge build a TOU session; setPowerControl is REST), and the real power limits are in 1701/1903. Purpose still unknown."),
     1827: CmdInfo(1827, 1828, "ibg_state", "IBG DSP/main state: infiNum, ibgDspState, ibgMainState (programme id), firmware versions, uptime"),
     1829: CmdInfo(1829, 1830, "event_block", "Gateway event log. Returns ONLY {num} = the number of stored events; on a healthy site that is 0, as observed 2026-09-14. The documented data/level/startTime fields appear only when num > 0 — six request shapes (plain, num=1, num=10, index=0, id=0, no dataArea) all returned num:0 with result:0, so the entry-fetch shape is UNKNOWN and cannot be determined until a gateway actually has events. Do not build a viewer against a guess."),
     1831: CmdInfo(1831, 1832, "battery_modules", "Battery module list: devNum, devMap[{id, devSN}]"),
@@ -247,7 +248,9 @@ for _cmd, _info in list(CATALOG.items()):
 #: Codes that respond but whose purpose is NOT confirmed. Their payloads look
 #: like placeholders under the usual ``{"opt": 0}`` probe, which may simply mean
 #: the request needs a different payload shape — see RESEARCH-BMS-CELL-LOCAL.
-UNCONFIRMED: frozenset[int] = frozenset({1207, 1209, 1821, 1823, 1825})
+# 1821 left this set on 2026-10-23: written from code, read back, with a measured
+# behavioural signature (battery operation stops). The other four remain undecoded.
+UNCONFIRMED: frozenset[int] = frozenset({1207, 1209, 1823, 1825})
 
 #: Reads addressed to ONE device: the request must carry an ``id`` selector taken
 #: from ``device_check`` (1105) / ``battery_modules`` (1831) ``devMap[].id``.
@@ -397,6 +400,24 @@ WRITES: dict[str, dict] = {
                 "port 502 is accepting connections for several seconds, and only fall back to "
                 "--and-reboot if it never changes. Enabling IEEE 2030.5 hands dispatch control "
                 "to a DERMS.",
+    },
+    "set_debug_mode": {
+        "cmd": 1821, "opt": 1, "fields": ["enable"],
+        "note": "Debug Mode on/off — the installer app's Tools -> Debug Mode "
+                "(Commissioning Guide AU & NZ, App v2.23.0, 2026-09-30, p.48). Confirmed "
+                "by write and read-back on ONE site (aGate X-01-AU, IBG V12R02B60D00, "
+                "2026-10-23): enable 1 turned it on, enable 0 turned it off, both read "
+                "back. SAFETY: turning it ON STOPS NORMAL BATTERY OPERATION - measured "
+                "the same day at 22:57 AEDT, self-consumption discharge stopped (battery "
+                "234 W -> about -42 W), the house moved to the grid (about 245 W) and "
+                "1301 run_status went 2 -> 0. Normal discharge resumed on enable 0. "
+                "Always turn it off when finished, and verify by reading it back rather "
+                "than trusting the ack. What Debug Mode UNLOCKS is only partly known: a "
+                "1701 grid-cap write STORED with it on (2026-10-23, same site) where the "
+                "same write on earlier firmware with it off did not - but whether that is "
+                "Debug Mode or the firmware has not been separated, and ENFORCEMENT is "
+                "untested. Reserve-SoC writes (1726/1405/1727) still do NOT apply, with "
+                "Debug Mode on or off.",
     },
     "reboot": {
         "cmd": 1721, "opt": 1, "fields": ["reboot"],

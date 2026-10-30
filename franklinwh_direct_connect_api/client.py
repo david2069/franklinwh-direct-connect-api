@@ -255,6 +255,50 @@ class DirectConnectClient:
         """
         return self.call(Cmd.DER_COMMS)
 
+    def debug_mode(self) -> dict[str, Any]:
+        """Read Debug Mode (cmd 1821 -> 1822). ``{"enable": 1}`` when on, ``0`` when off.
+
+        This is the installer app's **Tools -> Debug Mode** (Commissioning Guide AU & NZ,
+        App v2.23.0, 2026-09-30, p.48), confirmed by write and read-back on one site
+        (aGate X-01-AU, IBG V12R02B60D00, 2026-10-23).
+        """
+        return self.call(Cmd.DEBUG_MODE, {"opt": 0})
+
+    def set_debug_mode(self, on: bool) -> dict[str, Any]:
+        """Turn Debug Mode on or off (cmd 1821 opt:1) and VERIFY by reading it back.
+
+        .. danger::
+
+           **Turning Debug Mode ON stops normal battery operation.** Measured on the
+           reference site (aGate X-01-AU, IBG V12R02B60D00) at 22:57 AEDT on 2026-10-23:
+           self-consumption discharge stopped (battery 234 W to about -42 W), the house
+           moved to the grid (about 245 W), and ``1301`` ``run_status`` went 2 -> 0.
+           Normal discharge resumed when it was turned off again. Do not leave a site in
+           Debug Mode.
+
+        What Debug Mode unlocks is only partly established. A ``1701`` grid-cap write
+        STORED with it on, where the same write with it off on earlier firmware did not —
+        but whether that is Debug Mode or the newer firmware has not been separated, and
+        whether a stored cap is ENFORCED is untested. Reserve-SoC writes (1726/1405/1727)
+        do not apply either way.
+
+        Returns the reply plus ``verified`` (the read-back matched) and ``enable``. A
+        write that is acknowledged but does not read back returns ``verified: False``
+        rather than raising — on this protocol ``result: 0`` is not proof.
+        """
+        from .transport import TransportError
+        want = 1 if on else 0
+        reply = self.call(Cmd.DEBUG_MODE, {"opt": 1, "enable": want})
+        if reply.get("result") not in (0, None):
+            raise TransportError(
+                f"aGate rejected debug_mode write: result={reply.get('result')} "
+                f"reason={reply.get('reason')} (sent enable={want})"
+            )
+        after = self.debug_mode()
+        got = after.get("enable")
+        return {**reply, "enable": got, "requested": want,
+                "verified": got == want, "read_back": after}
+
     def set_der_comms(self, *, sunspec_modbus: bool | None = None,
                       sep2: bool | None = None) -> dict[str, Any]:
         """Write DER comms config (cmd 1205 opt:1) via full-block read-modify-write.

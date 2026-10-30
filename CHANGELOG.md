@@ -6,6 +6,34 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Debug Mode is no longer an unknown command.** `1821` is the installer app's
+  **Tools → Debug Mode**, confirmed by write and read-back on one site (aGate X-01-AU,
+  IBG V12R02B60D00, 2026-10-23). New `client.debug_mode()` and
+  `client.set_debug_mode(on)` — the write **verifies by reading `1821` back** and reports
+  `verified: False` rather than raising when the gateway acknowledges a write it did not
+  apply, because `result: 0` is not proof on this protocol. New CLI command
+  `debug_mode [--set on|off]`, which confirms before turning it on.
+
+  **Turning Debug Mode on stops normal battery operation** — measured on that site:
+  discharge stopped, the house moved to the grid, `run_status` went 2 → 0. The catalogue
+  entry, the write note, the CLI and the docs all say so.
+
+### Changed
+
+- **`1701`'s grid power-plane limits: what is known, by condition.** A `kwRatePower` /
+  `gridSoftLimit` write **stored and read back** with Debug Mode on (V12R02B60D00), where
+  the same write with it off on earlier firmware was acknowledged and discarded. Debug
+  Mode versus firmware is **not separated**, **enforcement is untested**, and a third
+  field (`gridImportLimit`) exists — so which one the aGate honours cannot be inferred.
+  Full table in `docs/PROTOCOL.md`.
+
+- **`1823` and `1825` stay UNCONFIRMED**, now with the reason they are suspected: the
+  guide's Debug Mode screen has an aPower on/off switch and a charge/discharge kW value,
+  which matches their shapes. A lead from a menu layout, not a reading — and `1823`
+  remains **do not write**.
+
 ### Documentation
 
 - **The comparison document no longer claims the bridge's features as this library's.**
