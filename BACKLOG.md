@@ -5,6 +5,102 @@ Status: `queued` → `planned` → `in-progress` → `done`.
 
 ---
 
+## DEF-1821-POLICY-CONFLICT — a policy claiming this repo forbids the 1821 write PR #22 ships
+
+**Severity:** S2 (hardware-write governance, PR #22 blocked) · **Status:** QUEUED — needs the owner · **Filed:** 2026-10-31 · **Area:** policy / writes
+
+`franklinwh-gateway-emulator/.agents/policies/hardware_test_protocol.md` defines its own
+scope as "every read or write an agent makes against the owner's aGate (Modbus TCP,
+**Direct Connect**, or the bridges in front of them)" — so by its own words it covers this
+repo. Its **Rule 2 (never write)** names `1821` / `1823` / `1825` as
+"maintenance commands that can leave a live site in a state the owner cannot clear from
+the app."
+
+Verified in that repo's git history 2026-10-31, not taken on report:
+
+| | |
+|---|---|
+| Rule 2 first appeared | 2026-10-13 (commit `32a7af7`) |
+| The 1821 write PR #22 documents | 2026-10-23 |
+
+The rule predates the write by ten days, and PR #22 ships `client.set_debug_mode()`,
+whose purpose is to write 1821.
+
+**What is NOT established.** Whether the owner authorised that specific write, or who
+performed it — neither is determinable from this repo. The recorded evidence does include
+a restore with a read-back, which is consistent with a deliberate, planned test.
+
+**What is also true.** This repo's `CLAUDE.md` has never named
+`hardware_test_protocol.md` as a source. It cites the `franklinwh-modbus`
+change-management and release policies, and references the gateway-emulator repo only for
+the emulator's coverage-scope table. So this is a policy asserting scope over this repo
+without having been adopted in it, and [[DEF-POLICY-SET-DIVERGENCE]] shows the wider
+policy set has already drifted.
+
+Raised to this session by the Direct Connect bridge session, which reports holding a
+conflicting instruction from the owner (1821 permitted; only 1823/1825 forbidden). Rule 2's
+text and dates were checked directly; the bridge's account of its own instruction is its
+claim, unverified here. Two conflicting instructions is the reason this needs the owner.
+
+**Blocked on the owner for:** (1) was the 2026-10-23 write authorised; (2) does this
+document bind this repo; (3) whose measurement is it, so the attribution can be fixed.
+Recorded as a comment on PR #22 so it cannot merge unseen. No code changed.
+
+---
+
+## DEF-1821-EVIDENCE-UNATTRIBUTED — PR #22 states another session's measurement as ours
+
+**Severity:** S2 (evidence standard, public docs) · **Status:** QUEUED — needs the owner · **Filed:** 2026-10-31 · **Area:** docs / evidence
+
+The `1821` catalogue entry, `docs/PROTOCOL.md` and the CHANGELOG on `feat/debug-mode-1821`
+all read "CONFIRMED by write and read-back on one site (aGate X-01-AU, IBG V12R02B60D00,
+2026-10-23)" with **no attribution**. That measurement was not performed in the session
+that wrote those words, so as published a reader takes it to be this library's own finding.
+
+`CLAUDE.md` is explicit: "When you pass a claim on, label it: who said it, where, when,
+and whether you verified it. Do not restate it as your own finding."
+
+**Fix:** name whose reading it is and state that this repo did not verify it, in all three
+places together. **Not guessed at** — the performer is unknown here, so this needs one line
+from the owner first. **Regression risk:** none; text only.
+
+---
+
+## DEF-POLICY-SET-DIVERGENCE — the shared agent policies have forked, and this repo carries none
+
+**Severity:** S3 (process) · **Status:** QUEUED — needs the owner · **Filed:** 2026-10-31 · **Area:** policy
+
+This is the only `franklinwh` repo on the owner's machine with **no `.agents/policies/`
+directory**; its rules are prose inside `CLAUDE.md` that calls itself "the Direct Connect
+reading" of policies in other repos. Surveyed 2026-10-31:
+
+- **Change management exists as two different texts.** The `AP-1` version is byte-identical
+  in `franklinwh-cloud` and `franklinwh-gateway-emulator`. `franklinwh-modbus`'s version —
+  the one `CLAUDE.md` names as the source, effective 2026-03-18 — differs from both and
+  carries no `AP` number.
+- `pii_policy.md` (`AP-3`) and `evidence_standard.md` (`AP-14`) differ between
+  `franklinwh-cloud` and `franklinwh-gateway-emulator` despite identical names and numbers.
+- The issue policy (`franklinwh-modbus-bridge docs/issue-policy.md`, accepted 2026-10-16)
+  scopes itself to "both bridges" and names them, so it does not bind this library repo.
+  Library repos queue in a file instead — `franklinwh-modbus` uses `in_flight_work.md`,
+  this repo uses `BACKLOG.md`. Nothing anywhere covers cross-repo handoffs; the bridge
+  session confirms its own #252/#253/#405 handoffs were ad hoc.
+
+**Two concrete non-compliances in this repo's own commits**, against
+`franklinwh-modbus/.agents/policies/release_policy.md`: defect-fix commit subjects must
+carry the ID (`fix(DEF-…): …`) and must state `Tests: N passed`. The 2026-10-31 commits do
+neither, keeping the IDs in the body and the count in prose. Note the source repo itself
+does this in 0 of its last 40 commits and `franklinwh-cloud` in 5 of 40, so the rule is
+unevenly applied at its origin.
+
+**Needs the owner to decide**, since none of it may be changed on a peer's say-so: whether
+this repo gains a real `.agents/policies/` (copies, or pointers to one source), which text
+is canonical where they have forked, whether the commit-ID and `Tests: N` formats are
+adopted, and whether `hardware_test_protocol.md` binds this repo
+([[DEF-1821-POLICY-CONFLICT]]). **Nothing changed pending that.**
+
+---
+
 ## DEF-VERSION-DRIFT — `__version__` said 0.4.0 while the distribution was 0.5.0
 
 **Severity:** S2 (wrong value reported, no workaround in-process) · **Status:** DONE (2026-10-31) · **Filed:** 2026-10-31 · **Area:** packaging
