@@ -226,6 +226,50 @@ captured.
 That exception is conditional on the proxy staying passive. If it ever gains the ability
 to synthesise or alter a reply, it must move off 9000.
 
+## VMs and containers are shared, and they are not yours
+
+**The owner's rule, 2026-11-01:** agents must not run VMs or containers concurrently with
+each other on his Mac mini, must **stop what they started when they finish**, and must
+watch what the machine is actually carrying. This applies to the one-off containers and
+VMs spun up for testing — exactly the kind this repo's emulator work creates.
+
+**The machine is not idle.** It runs the owner's live stack — bridges, Home Assistant,
+mosquitto, mock gateways — and other repo sessions use it too. A test that assumes a free
+machine is a test that takes someone's work down.
+
+**Before starting anything:**
+
+- **Check what is already running** (`docker ps`) and **record the names**. Check the load
+  and free memory too: a second emulator stack on a machine already at its limit is how a
+  live bridge starts timing out.
+- **Check no other agent is mid-run.** Concurrency is the owner's specific concern. If
+  another session is testing, wait or coordinate — do not start a second stack alongside.
+
+**While running:**
+
+- **Namespace everything you create** with a prefix of your own (`emutest-` has been used)
+  and put containers on a dedicated network. You must be able to tell your resources from
+  his at a glance, by name alone.
+- **Bind host ports in a range you have checked is free.** His stack holds 1885, 8098,
+  8099, 8102, 8124, 9001 and 18124 among others, and `:9000` is reserved outright.
+- **Never run `docker system prune`, `network prune` or `container prune`.** They do not
+  respect your namespace and will take his stack down. The same goes for stopping,
+  removing or restarting any container you did not create. Note this applies even when
+  disk looks tight: 26 GB of reclaimable build cache is not yours to reclaim — report it
+  and let the owner decide.
+
+**When finished — this is the part that gets skipped:**
+
+- **Stop and remove what you started, by name**, including networks and images. Not "it
+  will be cleaned up later": later is when the next session finds the machine full.
+- **Verify afterwards**, and report it: every container that was running before is still
+  running, by name. A before/after list, not an assurance. If you stopped something of his
+  by accident, **say so plainly** rather than restarting it quietly — he needs to know a
+  service was interrupted, not just that it is up again now.
+
+**A finished test that left resources behind is not finished.** Report what you created,
+that it is gone, and what the machine looked like before and after.
+
 ## Branch before you edit, and change `main` only by pull request
 
 **Every change goes on a branch and reaches `main` through a pull request.** Nothing is
