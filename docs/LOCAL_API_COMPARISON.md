@@ -20,11 +20,7 @@ differs. They are **not** forks of each other.
 | Emulator / mock aGate | ✅ dynamic, multi-aPower | ❌ |
 | LAN discovery / scan | ✅ | ❌ |
 | CLI | ✅ 87 subcommands (16 purpose-built + one per cmdType) | ❌ |
-<<<<<<< HEAD
-| Docstrings & worked examples | ✅ rich (61 docstring blocks in `client.py` alone) | ✅ README example |
-=======
-| Docstrings & worked examples | ✅ rich (60 docstring blocks in `client.py` alone) | ✅ README example |
->>>>>>> main
+| Docstrings & worked examples | ✅ rich (62 docstring blocks in `client.py` alone) | ✅ README example |
 | Documentation | layered (usage/API/mapping) + verified catalog | one excellent protocol README |
 
 Neither library has a Home Assistant integration, a REST API or a web UI. Those live in a
@@ -160,7 +156,7 @@ the difference is largest, and it is what most developers actually feel.
 
 **Docstrings.** Every public method here carries a real docstring — what it reads or
 writes, the cmdType, the payload shape, the sign conventions, and the caveats (`client.py`
-alone has 60 docstring blocks). Writes document their read-modify-write recipe and how
+alone has 62 docstring blocks). Writes document their read-modify-write recipe and how
 success is verified. voidstarr's code is clean and typed with a solid README example, but
 the per-call documentation is lighter.
 
