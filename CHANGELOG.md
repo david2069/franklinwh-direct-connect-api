@@ -14,14 +14,18 @@ uses [Semantic Versioning](https://semver.org/).
   milliseconds, and timeouts recorded as their own entry so a missing reply is visible
   rather than implied. In code: `DirectConnectClient(host, wire_log=WireLog("wire.jsonl"))`.
 
-  Three things make leaving it on reasonable:
+  **It logs the payload exactly as it went over the wire.** Nothing is masked unless you
+  ask — a debug log that quietly alters what it records is worse than none, because the
+  field you are chasing is the one that gets starred out. The log therefore holds device
+  serials and any credentials the gateway returns: a local diagnostic file, not one to
+  attach to an issue. `*.jsonl` is gitignored so it cannot be committed by accident.
 
-  - **It redacts by default.** These payloads carry WiFi passwords, device serials, MAC
-    addresses and the site's latitude, longitude and postcode. Sensitive values become
-    `<redacted:N>`, keeping the length — and **keeping the container shape**, so a list of
-    one is still a list and not mistakable for a one-character string. Any field ending
-    `_SN` is treated as a serial even if unknown. `--wire-log-raw` opts out and warns
-    loudly on every run.
+  - **`--wire-log-redact` masks secrets when the log is going to leave the machine** —
+    WiFi passwords, serials, MACs, latitude/longitude become `<redacted:N>`, keeping each
+    value's length and **its container shape**, so a list of one is still visibly a list
+    rather than a one-character string. Any field ending `_SN` is treated as a serial even
+    if unknown. Redacted records are marked `"redacted": true`, so an *unmarked* file is
+    the one you must assume holds real values.
   - **It truncates.** Long arrays (per-cell reads) and long strings are clipped with a
     marker saying how much was dropped, so a clipped payload cannot be mistaken for a
     short one.

@@ -4,13 +4,21 @@ Every ``cmdType`` frame this library sends or receives can be written to a log, 
 answer "what did we actually put on the wire, and what came back?" without asking
 anyone to trust a reconstruction.
 
-Three things make it safe to leave switched on, which is the whole point:
+**It logs what was actually on the wire — nothing is hidden by default.** A debug log that
+quietly alters the payload is worse than none, because the one field you are chasing is the
+one that got starred out. Full fidelity is the default.
 
-**It redacts by default.** These payloads carry **WiFi passwords** (``wifi_Pw``,
-``ap_Pw``), device **serials**, **MAC addresses** and the site's **latitude, longitude
-and postcode**. A raw wire log is a credential and location dump, so sensitive values are
-replaced with ``<redacted:N>`` unless the caller explicitly asks for raw. The field list
-is derived from the catalogue's own documented payloads, not guessed.
+**Redaction is available when it is needed, with ``redact=True``** (CLI:
+``--wire-log-redact``). Use it when the log is going to leave the machine — an issue, a
+gist, a hand to someone else. These payloads carry **WiFi passwords** (``wifi_Pw``,
+``ap_Pw``), device **serials**, **MAC addresses** and the site's **latitude, longitude and
+postcode**, and the redacting form keeps each value's **length and container shape** so the
+log still answers "one per aPower, or a single value?" without the values themselves. The
+field list is derived from the catalogue's own documented payloads, not guessed.
+
+A log written without redaction holds those secrets in clear. It is a local diagnostic
+file: read it, use it, delete it. Do not attach it, commit it, or paste it. This package's
+``.gitignore`` refuses ``*.jsonl`` so it cannot be committed by accident.
 
 **It truncates.** Long arrays (per-cell ``batVolt`` and friends) and long strings are
 clipped, with a marker saying what was dropped, so one frame cannot produce a megabyte.
@@ -179,16 +187,17 @@ class WireLog:
     backups:
         How many rotated files to keep. ``0`` means truncate in place and keep none,
         which still bounds disk use.
-    raw:
-        ``True`` writes payloads **unredacted** — WiFi passwords, serials and the site's
-        coordinates included. Only for a log you are about to read and delete yourself;
-        never for one that is shipped, attached to an issue, or left running.
+    redact:
+        ``False`` (the default) logs the payload **exactly as it went over the wire**,
+        secrets included — which is what a debug log is for. ``True`` replaces sensitive
+        values with ``<redacted:N>``, keeping their length and container shape; use it for
+        a log that is going to leave this machine.
     max_items / max_chars:
         Truncation limits per array and per string.
     """
 
     def __init__(self, path: str | os.PathLike[str], *, max_bytes: int = 1_048_576,
-                 backups: int = 3, raw: bool = False,
+                 backups: int = 3, redact: bool = False,
                  max_items: int = 24, max_chars: int = 512) -> None:
         if max_bytes <= 0:
             raise ValueError("max_bytes must be positive -- an unbounded log is the bug this class exists to prevent")
@@ -197,7 +206,7 @@ class WireLog:
         self.path = Path(path)
         self.max_bytes = int(max_bytes)
         self.backups = int(backups)
-        self.raw = bool(raw)
+        self.redact = bool(redact)
         self.max_items = int(max_items)
         self.max_chars = int(max_chars)
         self._lock = threading.Lock()
@@ -239,7 +248,7 @@ class WireLog:
                 equip_no: str | None, name: str | None,
                 elapsed_ms: float | None, error: str | None) -> dict[str, Any]:
         from . import catalog
-        payload = data_area if self.raw else redact(data_area)
+        payload = redact(data_area) if self.redact else data_area
         payload = truncate(payload, max_items=self.max_items, max_chars=self.max_chars)
         rec: dict[str, Any] = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime()),
@@ -249,13 +258,15 @@ class WireLog:
             "dataArea": payload,
         }
         if equip_no is not None:
-            rec["equipNo"] = equip_no if self.raw else _REDACTED.format(len(equip_no))
+            rec["equipNo"] = _REDACTED.format(len(equip_no)) if self.redact else equip_no
         if elapsed_ms is not None:
             rec["ms"] = round(elapsed_ms, 1)
         if error is not None:
             rec["error"] = error
-        if self.raw:
-            rec["raw"] = True                       # so a reader knows it holds secrets
+        # Mark the redacted form, not the full one: a reader who finds an unmarked file
+        # must assume it holds secrets, which is the safe default assumption.
+        if self.redact:
+            rec["redacted"] = True
         return rec
 
     def _write(self, record: dict[str, Any]) -> None:
@@ -305,4 +316,4 @@ class WireLog:
 
     def __repr__(self) -> str:
         return (f"WireLog({str(self.path)!r}, max_bytes={self.max_bytes}, "
-                f"backups={self.backups}, raw={self.raw}, records={self.records})")
+                f"backups={self.backups}, redact={self.redact}, records={self.records})")

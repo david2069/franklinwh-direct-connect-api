@@ -127,6 +127,23 @@ def emulator():
     emu.stop()
 
 
+def test_full_payloads_are_logged_by_default(tmp_path, emulator):
+    """Nothing is masked unless asked for: the default is what went over the wire.
+
+    A debug log that quietly alters the payload is worse than none, because the field
+    you are chasing is the one that got starred out.
+    """
+    path = tmp_path / "w.jsonl"
+    with WireLog(path) as wl:
+        with DirectConnectClient("127.0.0.1", emulator.port, timeout=3.0, wire_log=wl) as c:
+            c.login()
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    manifest = next(r for r in records if r["cmdType"] == 1102)
+    assert manifest["dataArea"]["IBG_SN"] == emulator.equip_no     # verbatim, not masked
+    assert "<redacted:" not in path.read_text()
+    assert all("redacted" not in r for r in records)   # unmarked = holds real values
+
+
 def test_the_login_exchange_is_captured(tmp_path, emulator):
     """The 1101/1102 login is the exchange a caller never makes explicitly, and the
     one a bug report most often needs. Hooking at frame level is what gets it."""
@@ -147,8 +164,7 @@ def test_the_login_exchange_is_captured(tmp_path, emulator):
     assert "soc" in reply["dataArea"]              # the useful payload is still there
 
     manifest = next(r for r in records if r["cmdType"] == 1102)
-    assert manifest["dataArea"]["IBG_SN"].startswith("<redacted:")
-    assert emulator.equip_no not in path.read_text()   # the serial never hits disk
+    assert "IBG_SN" in manifest["dataArea"]
 
 
 def test_process_default_is_picked_up_without_passing_it(tmp_path, emulator):
@@ -176,13 +192,26 @@ def test_process_default_is_picked_up_without_passing_it(tmp_path, emulator):
     assert wl_mod.get_default() is None
 
 
-def test_raw_mode_is_marked_so_a_reader_knows_it_holds_secrets(tmp_path, emulator):
-    path = tmp_path / "raw.jsonl"
-    with WireLog(path, raw=True) as wl:
+def test_redact_mode_masks_serials_and_marks_itself(tmp_path, emulator):
+    """`redact=True` is the form you can send to someone: no serial reaches disk."""
+    path = tmp_path / "red.jsonl"
+    with WireLog(path, redact=True) as wl:
         with DirectConnectClient("127.0.0.1", emulator.port, timeout=3.0, wire_log=wl) as c:
             c.login()
-    records = [json.loads(line) for line in path.read_text().splitlines()]
-    assert all(r.get("raw") is True for r in records)
-    # And it really is unredacted -- that is the trade the flag makes.
+    text = path.read_text()
+    records = [json.loads(line) for line in text.splitlines()]
+    assert emulator.equip_no not in text, "a serial reached a redacted log"
     manifest = next(r for r in records if r["cmdType"] == 1102)
-    assert manifest["dataArea"]["IBG_SN"] == emulator.equip_no
+    assert manifest["dataArea"]["IBG_SN"].startswith("<redacted:")
+    # Marked, so the REDACTED file is the identifiable one. An unmarked file must be
+    # assumed to hold real values -- the safe direction for whoever finds it.
+    assert all(r.get("redacted") is True for r in records)
+
+
+def test_wire_logs_cannot_be_committed_by_accident():
+    """The default log holds real serials, so git must refuse it outright."""
+    import subprocess
+    root = Path(__file__).resolve().parents[1]
+    out = subprocess.run(["git", "check-ignore", "-q", str(root / "wire.jsonl")],
+                         cwd=root, capture_output=True)
+    assert out.returncode == 0, "*.jsonl is not gitignored -- a full wire log could be committed"
