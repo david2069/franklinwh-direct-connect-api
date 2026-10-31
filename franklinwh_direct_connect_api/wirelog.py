@@ -49,7 +49,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-__all__ = ["WireLog", "SENSITIVE_FIELDS", "redact", "set_default", "get_default"]
+__all__ = ["WireLog", "SENSITIVE_FIELDS", "SENSITIVE_PATTERNS", "SENSITIVE_TOKENS",
+           "redact", "set_default", "get_default"]
 
 #: Process-wide wire log, used by any transport not given one explicitly.
 #:
@@ -92,6 +93,30 @@ SENSITIVE_FIELDS: frozenset[str] = frozenset({
     "lfdi", "sfdi", "pin",
 })
 
+#: Substring patterns that redact a field whatever it is called. Exact names are not
+#: enough on this protocol: the aGate spells latitude **"laitude"**, which
+#: ``SENSITIVE_FIELDS`` matched exactly and therefore missed, so a redacted log leaked the
+#: site's latitude while still being stamped ``"redacted": true``. A vendor typo must not
+#: be able to defeat redaction, and this protocol has several.
+#:
+#: Over-redaction is harmless in a log whose purpose is to be shareable; under-redaction
+#: is a disclosure. These patterns are therefore deliberately broad, and matched as
+#: substrings of the lower-cased field name.
+SENSITIVE_PATTERNS: tuple[str, ...] = (
+    "itude",        # latitude, longitude, laitude, altitude -- and future typos
+    "postcode", "postal", "zipcode",
+    "passw", "pwd", "_pw",
+    "ssid",
+    "serial",
+    "lfdi", "sfdi",
+)
+
+#: Whole-token matches, for names too short to use as substrings safely ("mac" would
+#: otherwise redact "machine", "ip" would redact "clipping").
+SENSITIVE_TOKENS: frozenset[str] = frozenset({
+    "mac", "ip", "dns", "gateway", "pin", "routerip",
+})
+
 _REDACTED = "<redacted:{}>"
 
 
@@ -107,8 +132,23 @@ def _cmd_name(cmd_type: int) -> str | None:
 
 
 def _is_sensitive(key: str) -> bool:
+    """Whether a field's VALUE must be hidden in a redacted log.
+
+    Four ways to match, deliberately generous -- see ``SENSITIVE_PATTERNS`` for why an
+    exact-name list alone was not safe:
+
+    1. the exact documented name (``SENSITIVE_FIELDS``);
+    2. a serial suffix (``*_SN``), so an unknown serial field is still caught;
+    3. a substring pattern, which survives vendor misspellings;
+    4. a whole token, for names too short to match as substrings.
+    """
     low = key.lower()
-    return low in SENSITIVE_FIELDS or low.endswith("_sn")
+    if low in SENSITIVE_FIELDS or low.endswith("_sn"):
+        return True
+    if any(pat in low for pat in SENSITIVE_PATTERNS):
+        return True
+    tokens = {t for t in low.replace("-", "_").split("_") if t}
+    return bool(tokens & SENSITIVE_TOKENS)
 
 
 def redact(value: Any, *, _key: str = "") -> Any:
