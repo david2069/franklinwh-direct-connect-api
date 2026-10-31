@@ -1,10 +1,50 @@
 # franklinwh-direct-connect-api
 
-Unofficial Python library and CLI for the **FranklinWH aGate local broker protocol** —
-the JSON `cmdType` frames exchanged over **TCP/9000**, the local interface the official
-FranklinWH app calls **"Direct Connect."** This is the lower-level device↔broker channel
-that the cloud `sendMqtt` REST relay (see
+This library is a **proof-of-concept demonstration** of how to talk to a FranklinWH aGate
+gateway over the (undocumented, unofficial) **FranklinWH Direct Connect** local API — the
+JSON `cmdType` frames exchanged over **TCP/9000**. It is the lower-level device↔broker
+channel that the cloud `sendMqtt` REST relay (see
 [`franklinwh-cloud`](https://github.com/david2069/franklinwh-cloud)) is layered on top of.
+
+**On the names.** *Direct Connect* is FranklinWH's own term for the gateway's local
+protocol. This project implements that protocol; it is the **library and CLI**, not an
+application — the [Direct Connect
+Bridge](https://github.com/david2069/franklinwh-direct-connect-bridge) is the application
+built on top of it, and is where a REST API, MQTT, Home Assistant entities and a web UI
+live. Adopting FranklinWH's term implies **no affiliation with, endorsement by, or support
+from FranklinWH**.
+
+The distribution on PyPI is `franklinwh-direct-connect-api`, the import package is
+`franklinwh_direct_connect_api`, and the CLI command is `franklinwh-direct-connect`. The
+pre-0.4.0 spellings still work, because removing them would break existing code: importing
+`franklinwh_local` returns the *same* module objects (so `isinstance` and subclassing hold
+across both spellings), the `franklinwh-local` command is the same entry point, and
+`LocalClient`/`LocalTransport` remain aliases of `DirectConnectClient`/
+`DirectConnectTransport`. Importing the old package emits a `DeprecationWarning`, and the
+aliases are **scheduled for removal in 0.6.0** — the date was previously 0.5.0, which
+shipped with them still in place.
+
+**It is not intended for production use, and there is no guarantee it is compatible with
+your FranklinWH gateway(s), aPower(s) or connectivity — now or in the future.** FranklinWH
+***<u>may change, block or deprecate this interface at any time</u>***. It has been tested on a local
+area network against **one** aGate X with **one** aPower, most recently on firmware
+`IBG_VER V12R02B60D00_260924` / `protocolVer V1.12.02` (read 2026-10-31). One site on one
+firmware is a hypothesis, not a compatibility matrix: multi-aPower behaviour in particular
+is **unobserved**, and anything this documentation marks UNCONFIRMED has not been proven on
+any hardware.
+
+**You do not need a gateway to try it.** Run the built-in emulator and point the whole CLI
+and library at it — a deterministic synthetic aGate with N aPowers, live telemetry, energy
+history, smart circuits and writes that persist, so you can see the thing work before you
+connect real hardware:
+
+```bash
+franklinwh-direct-connect emulate --port 9000            # a fake aGate
+franklinwh-direct-connect --host 127.0.0.1 power_flow    # ... talk to it
+```
+
+The emulator is a development aid. It serves what it was told to serve, so it is **not**
+evidence of how real hardware behaves.
 
 > **Status: alpha.** The protocol was reverse-engineered from packet captures.
 > Frame parsing/encoding and the offline tooling are well tested; live transport
@@ -45,8 +85,8 @@ together in one place.
 >
 > This library speaks FranklinWH's undocumented **Direct Connect** (local) protocol on
 > **TCP/9000** — technically the **same private channel the official FranklinWH mobile app**
-> uses, intended for that app and not for third-party use. It may change, break, or become
-> unavailable without notice. It is provided **AS-IS**, without warranty of any kind, express
+> uses, intended for that app and not for third-party use. It
+> ***<u>may change, break, or become unavailable without notice</u>***. It is provided **AS-IS**, without warranty of any kind, express
 > or implied — use entirely at your own risk. The authors accept no liability for service
 > interruptions, data loss, equipment damage, or any other consequences of using this
 > software.
@@ -136,7 +176,7 @@ Connect** is FranklinWH's own term for this protocol.
 ### Migrating from 0.3.x and earlier
 
 The import package was `franklinwh_local` and the CLI was `franklinwh-local`. Both still
-work in 0.4.x and emit a `DeprecationWarning`; **they are removed in 0.5.0**.
+work and emit a `DeprecationWarning`; **they are scheduled for removal in 0.6.0**.
 
 ```python
 from franklinwh_local import LocalClient                         # 0.3.x — deprecated
@@ -163,7 +203,7 @@ Everything below assumes the venv is activated. Offline commands
 | `can't open file '.../franklinwh-direct-connect'` | You ran `python franklinwh-direct-connect`. Drop the `python` — it's a command, not a script. |
 | `command not found: franklinwh-direct-connect` | The venv isn't activated (`source .venv/bin/activate`), or `pip install -e .` hasn't been run in it. |
 | `No module named franklinwh_direct_connect_api` | You're on a different interpreter than the one you installed into. Check with `which python` and `pip -V` — both should point inside `.venv`. |
-| `DeprecationWarning: 'franklinwh_local' was renamed` | Expected on 0.4.x if you import the old name. See [Migrating](#migrating-from-03x-and-earlier); it stops working at 0.5.0. |
+| `DeprecationWarning: 'franklinwh_local' was renamed` | Expected whenever you import the old name (it still works). See [Migrating](#migrating-from-03x-and-earlier); it stops working at 0.5.0. |
 | `error: externally-managed-environment` | You ran `pip install` outside a venv on a Homebrew/system Python. Create and activate the venv first. |
 
 ## Quick start
@@ -441,7 +481,7 @@ franklinwh_direct_connect_api/
   bms.py         per-cell battery rendering for the `battery` command
   probe.py       read-only cmdType sweep with a payload matrix
   proxy.py       transparent decoding relay
-franklinwh_local/  deprecated import shim (removed in 0.5.0)
+franklinwh_local/  deprecated import shim (to be removed in 0.6.0)
 tests/           pytest suite (emulator- and capture-driven)
 docs/            the published guide (mkdocs): USAGE, PROTOCOL, API, CLOUD_MAPPING
 ```

@@ -6,7 +6,9 @@ FranklinWH's own term for this protocol, "Direct Connect". Importing
 ``isinstance`` checks, subclassing and ``is`` comparisons across the two
 spellings all hold.
 
-This alias is scheduled for removal in **0.5.0**. To migrate::
+This alias is scheduled for removal in **0.6.0**. It was previously dated 0.5.0, which
+shipped with the alias still in place -- so that date is corrected rather than silently
+missed. To migrate::
 
     from franklinwh_local import LocalClient          # before
     from franklinwh_direct_connect_api import DirectConnectClient   # after
@@ -23,7 +25,7 @@ _NEW = "franklinwh_direct_connect_api"
 
 warnings.warn(
     f"'franklinwh_local' was renamed to '{_NEW}' in 0.4.0 and will be removed in "
-    f"0.5.0. Replace 'import franklinwh_local' with 'import {_NEW}' "
+    f"0.6.0. Replace 'import franklinwh_local' with 'import {_NEW}' "
     "(and 'LocalClient' with 'DirectConnectClient').",
     DeprecationWarning,
     stacklevel=2,
