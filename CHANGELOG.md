@@ -8,6 +8,34 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **The `1102` login manifest's field shapes are now measured, not assumed.** Read from the
+  reference aGate on 2026-10-31 (`IBG_VER V12R02B60D00_260924`, `protocolVer V1.12.02`,
+  one aPower). Thirteen fields arrive as **lists** — `FHP_SN`, `PE_SN`, `BMS_SN`,
+  `FPGA_VER`, `DCDC_VER`, `INV_VER`, `BMS_VER`, `BL_VER`, `TH_VER`, `PE_HW_VER`,
+  `BMS_MAIN_HW_VER`, `BMS_BL_HW_VER`, `BMS_TH_HW_VER` — and fourteen as scalars. **A
+  one-element list is not proof of one entry per aPower:** that site has one unit, so "per
+  unit" and "always a list" remain indistinguishable, and the multi-aPower manifest is
+  still unobserved.
+
+- **`firmware()` no longer drops seven fields the gateway actually sends.** `FHP_NUM` —
+  the aPower count, which is what tells you how to read those list lengths — plus
+  `PE_HW_VER`, `BMS_MAIN_HW_VER`, `BMS_BL_HW_VER`, `BMS_TH_HW_VER`, `deviceType` and
+  `threePhasePvPower`. The filter matches by known key, so these were omitted silently
+  rather than failing; a test now re-derives the list from the measured reply.
+
+### Fixed
+
+- **`SUNSPEC_FW` is not a login-manifest key.** It appears in no reply; it had been
+  invented elsewhere, and has since been withdrawn there too.
+
+- **Keep `minProtocolVer` in the login request.** A `1101` of bare `{"opt": 0}`, sent as a
+  second login on one connection, has been recorded answering `result: 1, reason: -2` while
+  still returning a manifest — matching the same pattern on `1103` (request omitting
+  `devNum`) and `1123`. The full request this library sends returns `result: 0, reason: 0`.
+  `login()` still does not reject on `result`, and now documents why: on this protocol a
+  non-zero `result` does not reliably mean "no payload", and failing the one exchange every
+  other call depends on would turn a request-shape quirk into a total outage.
+
 - **A request/response wire log you can safely leave switched on.** `--wire-log PATH`
   appends every frame this library sends or receives to a JSON-lines file, the
   `1101`/`1102` login included, with the catalogue name, the round-trip time in
