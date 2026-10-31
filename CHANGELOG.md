@@ -44,6 +44,79 @@ uses [Semantic Versioning](https://semver.org/).
   which matches their shapes. A lead from a menu layout, not a reading — and `1823`
   remains **do not write**.
 
+- **The `1102` login manifest's field shapes are now measured, not assumed.** Read from the
+  reference aGate on 2026-10-31 (`IBG_VER V12R02B60D00_260924`, `protocolVer V1.12.02`,
+  one aPower). Thirteen fields arrive as **lists** — `FHP_SN`, `PE_SN`, `BMS_SN`,
+  `FPGA_VER`, `DCDC_VER`, `INV_VER`, `BMS_VER`, `BL_VER`, `TH_VER`, `PE_HW_VER`,
+  `BMS_MAIN_HW_VER`, `BMS_BL_HW_VER`, `BMS_TH_HW_VER` — and fourteen as scalars. **A
+  one-element list is not proof of one entry per aPower:** that site has one unit, so "per
+  unit" and "always a list" remain indistinguishable, and the multi-aPower manifest is
+  still unobserved.
+
+- **`firmware()` no longer drops seven fields the gateway actually sends.** `FHP_NUM` —
+  the aPower count, which is what tells you how to read those list lengths — plus
+  `PE_HW_VER`, `BMS_MAIN_HW_VER`, `BMS_BL_HW_VER`, `BMS_TH_HW_VER`, `deviceType` and
+  `threePhasePvPower`. The filter matches by known key, so these were omitted silently
+  rather than failing; a test now re-derives the list from the measured reply.
+
+### Fixed
+
+- **`1833 device_firmware` no longer claims to be "richer than the 1101 login manifest".**
+  The 2026-10-31 read shows `1102` already carries `PE_SN`, `BMS_SN` and `BMS_VER` as
+  per-unit lists, so the stated differentiator was wrong. What `1833` actually adds is
+  `ibg_iot`, `ibg_local` and `pe_ver`, and it returns one unit's block addressed by `id`
+  rather than parallel lists — which makes it the cross-check for whether a `1102` list
+  index maps to a device `id`. Untested: no multi-aPower site has been read.
+
+- **`SUNSPEC_FW` is not a login-manifest key.** It appears in no reply; it had been
+  invented elsewhere, and has since been withdrawn there too.
+
+- **Keep `minProtocolVer` in the login request.** A `1101` of bare `{"opt": 0}`, sent as a
+  second login on one connection, has been recorded answering `result: 1, reason: -2` while
+  still returning a manifest — matching the same pattern on `1103` (request omitting
+  `devNum`) and `1123`. The full request this library sends returns `result: 0, reason: 0`.
+  `login()` still does not reject on `result`, and now documents why: on this protocol a
+  non-zero `result` does not reliably mean "no payload", and failing the one exchange every
+  other call depends on would turn a request-shape quirk into a total outage.
+
+- **A request/response wire log you can safely leave switched on.** `--wire-log PATH`
+  appends every frame this library sends or receives to a JSON-lines file, the
+  `1101`/`1102` login included, with the catalogue name, the round-trip time in
+  milliseconds, and timeouts recorded as their own entry so a missing reply is visible
+  rather than implied. In code: `DirectConnectClient(host, wire_log=WireLog("wire.jsonl"))`.
+
+  **It logs the payload exactly as it went over the wire.** Nothing is masked unless you
+  ask — a debug log that quietly alters what it records is worse than none, because the
+  field you are chasing is the one that gets starred out. The log therefore holds device
+  serials and any credentials the gateway returns: a local diagnostic file, not one to
+  attach to an issue. `*.jsonl` is gitignored so it cannot be committed by accident.
+
+  - **`--wire-log-redact` masks secrets when the log is going to leave the machine** —
+    WiFi passwords, serials, MACs, latitude/longitude become `<redacted:N>`, keeping each
+    value's length and **its container shape**, so a list of one is still visibly a list
+    rather than a one-character string. Any field ending `_SN` is treated as a serial even
+    if unknown. Redacted records are marked `"redacted": true`, so an *unmarked* file is
+    the one you must assume holds real values.
+  - **It truncates.** Long arrays (per-cell reads) and long strings are clipped with a
+    marker saying how much was dropped, so a clipped payload cannot be mistaken for a
+    short one.
+  - **It cannot fill a disk.** `--wire-log-max-bytes` × (`--wire-log-backups` + 1) is a
+    hard ceiling — 4 MiB by default. Rotation happens *before* a write that would exceed
+    the cap, and the oldest file is deleted rather than accumulated.
+
+  A logging failure never propagates: a broken log must not cost a device call.
+
+### Fixed
+
+- **`electricSupply` is the supply/service amperage, and `airSwitchCur` is the air-switch
+  rating — the catalogue had it backwards.** It described `electricSupply` as an undecoded
+  capability bitfield (`63 = 0b111111`) and treated `airSwitchCur` as the service amps. The
+  owner confirmed on 2026-09-27 that his site is a **63 A supply**, reading
+  `electricSupply=63` with `airSwitchCur=100`: 63 is simply 63 amps. The two differ
+  whenever the supply is smaller than the air switch can carry, so substituting one for the
+  other misreports the service rating. `docs/PROTOCOL.md` now names both fields in the
+  `1701` row instead of listing only `airSwitchCur`.
+
 ### Fixed
 
 - **`__version__` no longer reports a release behind the one you installed.** It was a

@@ -34,6 +34,15 @@ DEFAULT_TIMEOUT = 20.0   # seconds; generous for slow/flaky local wifi
 DEFAULT_RETRIES = 2      # transient reconnect-retries per connect/request
 ERROR_CMD = 9999         # aGate's generic error/unsupported-cmdType response frame
 LOGIN_EQUIP = "00000000"
+#: The 1101 request body, and it is ACCEPTED as-is: measured on the reference aGate
+#: 2026-10-31 (IBG_VER V12R02B60D00_260924, protocolVer V1.12.02), this request returns
+#: ``result: 0, reason: 0`` with the full 27-key manifest.
+#:
+#: **Do not drop ``minProtocolVer``.** A 1101 of just ``{"opt": 0}`` has been recorded
+#: answering ``result: 1, reason: -2`` (see ``_login_locked``). It is not established
+#: whether the missing field or the repeat login caused that, so keep both keys.
+#:
+#: The reply is still NOT validated against ``result`` -- see ``_login_locked`` for why.
 LOGIN_DATA_AREA = {"opt": 0, "minProtocolVer": "V1.00.00"}
 
 
@@ -55,7 +64,14 @@ class DirectConnectTransport:
 
     def __init__(self, host: str, port: int = DEFAULT_PORT, *,
                  timeout: float = DEFAULT_TIMEOUT, retries: int = DEFAULT_RETRIES,
-                 retry_backoff: float = 0.5):
+                 retry_backoff: float = 0.5, wire_log: Any | None = None):
+        #: Optional ``WireLog``. Hooked at the frame level rather than at ``request``
+        #: so it captures the 1101/1102 login too -- which is the one exchange a caller
+        #: never makes explicitly and the one most often needed in a bug report.
+        if wire_log is None:
+            from . import wirelog as _wirelog
+            wire_log = _wirelog.get_default()
+        self.wire_log = wire_log
         self.host = host
         self.port = port
         self.timeout = timeout
@@ -151,7 +167,23 @@ class DirectConnectTransport:
             cmd_type, equip_no, data_area, time_stamp=ts, snno=s, seed=seed
         )
         self._sock.sendall(wire)
+        if self.wire_log is not None:
+            self.wire_log.log("req", cmd_type, data_area, equip_no=equip_no)
+        self._t_sent = time.monotonic()
         return s
+
+    #: Monotonic clock at the last send, for the round-trip time in the wire log.
+    _t_sent: float | None = None
+
+    def _log_rx(self, fr: Frame) -> Frame:
+        """Record a received frame, with the round-trip time when one is known."""
+        if self.wire_log is not None:
+            elapsed = None
+            if self._t_sent is not None:
+                elapsed = (time.monotonic() - self._t_sent) * 1000.0
+            self.wire_log.log("resp", fr.cmd_type, fr.data_area,
+                              equip_no=fr.equip_no, elapsed_ms=elapsed)
+        return fr
 
     @staticmethod
     def _matches(fr: Frame, want_cmd: int | None) -> bool:
@@ -170,7 +202,7 @@ class DirectConnectTransport:
         # serve from buffer first
         for i, fr in enumerate(self._pending):
             if self._matches(fr, want_cmd):
-                return self._pending.pop(i)
+                return self._log_rx(self._pending.pop(i))
         deadline = time.time() + self.timeout
         while time.time() < deadline:
             chunk = self._sock.recv(8192)
@@ -178,8 +210,13 @@ class DirectConnectTransport:
                 raise TransportError("connection closed by peer")
             for fr in self._stream.feed(chunk):
                 if self._matches(fr, want_cmd):
-                    return fr
+                    return self._log_rx(fr)
                 self._pending.append(fr)
+        if self.wire_log is not None:
+            # A timeout is the single most useful thing a wire log can record: the
+            # request is already in the file, so the gap is visible rather than implied.
+            self.wire_log.log("resp", want_cmd or 0, None,
+                              error=f"timeout after {self.timeout}s")
         raise TimeoutError(f"no frame{f' {want_cmd}' if want_cmd else ''} within {self.timeout}s")
 
     # -- request/response ----------------------------------------------------
@@ -239,6 +276,33 @@ class DirectConnectTransport:
             return self._login_locked(data_area)
 
     def _login_locked(self, data_area: Any | None) -> Frame:
+        """Send 1101 and accept the 1102 reply WITHOUT checking ``result``.
+
+        Deliberate, and the evidence is specific about when ``result`` is non-zero.
+
+        A **full** login -- ``{opt: 0, minProtocolVer: ...}``, first on the connection --
+        answers ``result: 0, reason: 0`` (measured on the reference aGate 2026-10-31,
+        IBG_VER V12R02B60D00_260924).
+
+        A **1101 of just** ``{"opt": 0}``, with ``minProtocolVer`` omitted and sent as a
+        second login on an already-authenticated connection, answers
+        ``result: 1, reason: -2`` -- and still returns a 1102 manifest. That is the
+        Direct Connect Bridge's stored record of 2026-10-20T20:10:50Z, reported to this
+        session via the Emulator session and NOT reproduced here. Which of the two
+        differences causes it -- the missing ``minProtocolVer``, or the repeat login on
+        one session -- is **not established**.
+
+        So a ``result == 0`` gate would not break the normal path, and the reason to stay
+        permissive is the pattern across cmdTypes: on this protocol ``result=1`` with a
+        negative ``reason`` means "the request was not the shape I expected", and the
+        device **serves the payload anyway**. The catalogue records it for 1103 (request
+        omitting ``devNum``) and 1123 (returns the aGate serial regardless). Login is the
+        exchange every other call depends on, so rejecting a reply that carries a perfectly
+        good manifest would turn a request-shape quirk into a total outage.
+
+        If login should become stricter, gate on the manifest being USABLE -- ``IBG_SN``
+        present -- rather than on ``result``.
+        """
         self._login_data_area = data_area
         last: Exception | None = None
         for attempt in range(self.retries + 1):

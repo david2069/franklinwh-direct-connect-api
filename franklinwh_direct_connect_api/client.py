@@ -55,8 +55,15 @@ class DirectConnectClient:
     """
 
     def __init__(self, host: str, port: int = 9000, *, timeout: float = DEFAULT_TIMEOUT,
-                 retries: int = DEFAULT_RETRIES, equip_no: str | None = None):
-        self.transport = DirectConnectTransport(host, port, timeout=timeout, retries=retries)
+                 retries: int = DEFAULT_RETRIES, equip_no: str | None = None,
+                 wire_log: Any | None = None):
+        """``wire_log``: an optional :class:`~franklinwh_direct_connect_api.WireLog`.
+
+        Every frame this client sends or receives is appended to it, the 1101/1102 login
+        included. Redacted, truncated and size-capped by default -- see that class.
+        """
+        self.transport = DirectConnectTransport(host, port, timeout=timeout,
+                                                retries=retries, wire_log=wire_log)
         self._equip = equip_no
 
     # -- lifecycle -----------------------------------------------------------
@@ -124,10 +131,39 @@ class DirectConnectClient:
         return dict(self.transport.login().data_area)
 
     # The version/serial fields carried in the login (1102) manifest.
+    #: Keys lifted from the 1102 login manifest by :meth:`firmware`.
+    #:
+    #: Measured against the reference aGate 2026-10-31 (IBG_VER V12R02B60D00_260924,
+    #: protocolVer V1.12.02, ONE aPower), the reply carries 27 keys, and these fields
+    #: arrive as **lists** -- one entry each on that site::
+    #:
+    #:     FHP_SN  PE_SN  BMS_SN  FPGA_VER  DCDC_VER  INV_VER  BMS_VER  BL_VER
+    #:     TH_VER  PE_HW_VER  BMS_MAIN_HW_VER  BMS_BL_HW_VER  BMS_TH_HW_VER
+    #:
+    #: while these are **scalars**::
+    #:
+    #:     IBG_SN  IBG_VER  APP_VER  AWS_VER  SL_VER  METER_VER  protocolVer
+    #:     FHP_NUM  SyHdVersion  deviceType  threePhasePvPower
+    #:
+    #: **A one-element list is NOT proof of one entry per aPower.** The site read had
+    #: ``FHP_NUM`` 1, so "per unit" and "always a list" are indistinguishable from it.
+    #: The multi-aPower manifest is unobserved -- do not assume N entries for N units.
+    #:
+    #: ``SUNSPEC_FW`` is **not** a key in this reply; it was invented elsewhere and
+    #: withdrawn. ``firmware()`` passes values through verbatim, so this tuple is a key
+    #: filter and asserts no shape -- a flat tuple is not a claim that these are scalars.
     FIRMWARE_FIELDS = (
         "protocolVer", "IBG_VER", "APP_VER", "AWS_VER", "SL_VER", "FPGA_VER",
         "DCDC_VER", "INV_VER", "BMS_VER", "BL_VER", "TH_VER", "SyHdVersion", "METER_VER",
         "IBG_SN", "FHP_SN", "BMS_SN", "PE_SN",
+        # Present in the reply but previously dropped by this filter (measured 2026-10-31):
+        # the per-aPower hardware revisions, the device type, and the three-phase PV flag.
+        "PE_HW_VER", "BMS_MAIN_HW_VER", "BMS_BL_HW_VER", "BMS_TH_HW_VER",
+        "deviceType", "threePhasePvPower",
+        # FHP_NUM is the aPower count -- the field that tells a caller how to READ the
+        # list lengths above. It was dropped by this filter, so firmware() returned the
+        # per-unit lists with nothing to interpret them against.
+        "FHP_NUM",
     )
 
     def firmware(self) -> dict[str, Any]:
