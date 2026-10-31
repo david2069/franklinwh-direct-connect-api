@@ -5,6 +5,69 @@ Status: `queued` → `planned` → `in-progress` → `done`.
 
 ---
 
+## DEF-SCAN-IGNORES-CUSTOM-PORTS — `scan(ports=...)` silently finds nothing on a non-default port
+
+**Severity:** S2 (broken, no workaround in the library) · **Status:** QUEUED — needs the owner · **Filed:** 2026-10-31 · **Area:** discovery
+
+`discover.scan()` accepts a `ports` tuple, but `check()` only ever probes the two
+module constants:
+
+```python
+if PORT_SENDMQTT in ports:
+    r.sendmqtt_open = port_open(host, PORT_SENDMQTT, timeout)   # 9000, not the port asked for
+if PORT_MODBUS in ports:
+    r.modbus_open = port_open(host, PORT_MODBUS, timeout)       # 502
+```
+
+So `ports` is a **filter over two hardcoded ports**, not a list of ports to scan. Pass
+anything else and **neither branch fires, nothing is probed, and the host is reported as
+not a candidate** — no error, no warning.
+
+Measured in-process 2026-10-31 against this library's own emulator on `127.0.0.1:9020`:
+
+```
+listener is really on 9020: True
+scan(ports=(9020,)) -> NOTHING FOUND
+scan(default ports)  -> ['127.0.0.1: 9000/sendMqtt CONFIRMED (IBG_SN=MOCK…)']
+```
+
+Two further defects in the same area, found while confirming the first:
+
+1. **One result per HOST, so two listeners on one IP cannot both be reported.**
+   `HostResult` carries booleans (`sendmqtt_open`, `sendmqtt_confirmed`) and `scan`
+   keys results by host (`results[r.host] = r`). An emulator host serving 9020–9024
+   collapses to a single row, and the port is not recorded anywhere.
+2. **`summary()` hardcodes the port in its output** — `tag = "9000/sendMqtt"`. Even if a
+   different port were probed, the printed line would name 9000. A scan report that
+   states the wrong port is worse than one that omits it.
+
+### What is being asked for
+
+Relayed by the Direct Connect Bridge session as the owner's instruction of 2026-10-31
+(their #416), which blocks a bridge feature: the Direct Connect listener search defaults
+to 9000, and the user may give another port, a list, or a range. Wanted:
+
+- `scan` probing **and confirming via `1101`** on any given ports;
+- **one result per (host, port)**, with the port carried on the result;
+- an `expand_ports("9000,9020-9030")` beside the existing `expand_targets`;
+- Modbus probing unchanged.
+
+**Not started.** A peer session may advise but not start work (`CLAUDE.md`, "The owner
+gives instructions here"), so this is queued pending the owner's confirmation in this
+session. The defect above is verified and real regardless of whether the feature is
+approved.
+
+### Regression risk if built
+
+**Medium, and it is an API break.** `HostResult` is exported and `scan` returns
+`list[HostResult]`; moving to one row per (host, port) changes the return shape for every
+caller, including the `scan` CLI subcommand and `expand_targets` users. The CLI's
+confusion guard (a port given where a host belongs) also needs revisiting once ports are
+first-class. Worth doing as a **0.6.0** change alongside the alias removal already dated
+there, rather than a patch.
+
+---
+
 ## DEF-CLI-HELP-SUPPRESS — `--help` prints `==SUPPRESS==` for every per-cmdType subcommand
 
 **Severity:** S3 (cosmetic) · **Status:** QUEUED · **Filed:** 2026-10-15 · **Area:** CLI
