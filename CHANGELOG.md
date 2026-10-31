@@ -70,6 +70,26 @@ uses [Semantic Versioning](https://semver.org/).
 
   A logging failure never propagates: a broken log must not cost a device call.
 
+### Fixed
+
+- **`__version__` no longer reports a release behind the one you installed.** It was a
+  hand-maintained literal reading `0.4.0` while the published distribution was `0.5.0`,
+  so anything logging the library version — a bridge recording its dependency, a bug
+  report, `health` output — named the wrong release. `pyproject.toml` is now the single
+  source and the package reads it back from its installed distribution metadata, with a
+  test that fails if the two ever diverge again.
+
+- **The deprecation notices no longer promise a removal that already passed.** The
+  `franklinwh_local` import shim, the `franklinwh-local` command and the `LocalClient`/
+  `LocalTransport` class aliases were all documented as "removed in 0.5.0" — but 0.5.0
+  shipped with every one of them still in place, and two README lines stated the removal
+  as a past event. The date is now **0.6.0** in all **nine** places that carried it (the
+  shim's docstring, its runtime `DeprecationWarning`, two `pyproject.toml` comments, the
+  test module, three README lines, and the `LocalClient`/`LocalTransport` alias comments
+  in `client.py` and `transport.py` — the last two found only by grepping for the stale
+  string after believing the job was done), and each says the date moved rather than letting
+  the earlier promise disappear. **Nothing was removed** — the aliases still work and
+  still return the same objects.
 
 ### Documentation
 

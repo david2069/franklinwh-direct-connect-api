@@ -1,6 +1,8 @@
 """The `franklinwh_local` import alias kept for 0.4.x.
 
-Removal is scheduled for 0.5.0 — delete this file and the shim package together.
+Removal is scheduled for 0.6.0 — delete this file and the shim package together.
+(It was dated 0.5.0; 0.5.0 shipped with the alias still present, so the date moved
+rather than the promise being quietly dropped.)
 """
 import importlib
 import sys
@@ -29,7 +31,7 @@ def test_importing_the_old_name_warns_and_names_the_new_one():
     assert dep, "importing the alias must raise DeprecationWarning"
     msg = str(dep[0].message)
     assert "franklinwh_direct_connect_api" in msg
-    assert "0.5.0" in msg, "the warning must say when the alias goes"
+    assert "0.6.0" in msg, "the warning must say when the alias goes"
 
 
 def test_alias_exports_the_same_objects_not_copies():
