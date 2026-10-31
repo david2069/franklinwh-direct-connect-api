@@ -8,11 +8,28 @@ Responses are synthesised by a deterministic per-seed :class:`SyntheticSite`, so
 capture is bundled or required. A caller may still pass ``pcap=<path>`` to replay their
 own capture instead.
 
+Listener rule: **this emulator must never listen on TCP 9000.**
+
+`9000` is where a *real* aGate listens, and it is reserved for the real device and for the
+**FranklinWH Gateway Emulator**, which is the official emulator and is deliberately
+transparent — something on 9000 is meant to be indistinguishable from a gateway. This
+library's `emulate` mode is a development mock and must stay distinguishable, so it
+**defaults to 19000 and refuses 9000 outright** rather than warning.
+
+The reason is concrete, and it has already happened on the owner's machine: a mock left
+running on 9000 was found by `scan 127.0.0.1` and reported as
+``9000/sendMqtt CONFIRMED (IBG_SN=MOCK…)``. A discovery result that cannot be trusted to
+mean "a gateway" is worse than no discovery at all, and the same confusion in a bug report
+or a capture is unrecoverable after the fact.
+
+The rule is the owner's (2026-10-31) and binds both emulators; the Gateway Emulator
+documents its own side.
+
 Run it::
 
-    franklinwh-direct-connect emulate --port 9000
+    franklinwh-direct-connect emulate              # defaults to 19000
     # then, in another shell:
-    franklinwh-direct-connect --host 127.0.0.1 power_flow
+    franklinwh-direct-connect --host 127.0.0.1 --port 19000 power_flow
 """
 
 from __future__ import annotations
@@ -64,12 +81,26 @@ def _load_canned(pcap: str | None) -> dict[int, str]:
 class Emulator:
     """A threaded fake broker. Use as a context manager or call serve_forever()."""
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 9000, *,
+    #: Default listen port. NOT 9000 -- see the listener rule in the module docstring.
+    DEFAULT_PORT = 19000
+
+    #: Reserved for a real aGate and for the official FranklinWH Gateway Emulator.
+    RESERVED_PORT = 9000
+
+    def __init__(self, host: str = "127.0.0.1", port: int = DEFAULT_PORT, *,
                  equip_no: str = DEFAULT_EQUIP, pcap: str | None = None,
                  seed: int | None = None, serial: str | None = None,
                  dynamic: bool = True, units: int = 1,
                  tz_offset_hours: float | None = None,
                  extra: dict[int, Any] | None = None):
+        if port == self.RESERVED_PORT:
+            raise ValueError(
+                f"TCP {self.RESERVED_PORT} is a reserved port and not available for use. "
+                "It belongs to a real aGate and to the FranklinWH Gateway Emulator, which "
+                "is the official, deliberately transparent emulator; this library's mock "
+                "must stay distinguishable from a gateway. Use the default "
+                f"{self.DEFAULT_PORT}, or any other free port."
+            )
         self.host = host
         self.port = port
         self.equip_no = equip_no

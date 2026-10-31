@@ -54,14 +54,26 @@ jobs:
           from franklinwh_direct_connect_api.emulator import Emulator
           from franklinwh_direct_connect_api.client import DirectConnectClient
           from franklinwh_direct_connect_api import discover
-          emu = Emulator("127.0.0.1", 9000).start()
+          # Port 0 = an ephemeral port chosen by the OS. Never 9000: that is reserved
+          # for a real aGate and the FranklinWH Gateway Emulator, and Emulator() refuses
+          # it. Ephemeral also means two CI jobs cannot collide on a fixed port.
+          emu = Emulator("127.0.0.1", 0).start()
           try:
-              with DirectConnectClient("127.0.0.1", 9000, timeout=3.0) as c:
+              with DirectConnectClient("127.0.0.1", emu.port, timeout=3.0) as c:
                   assert c.login()["IBG_SN"]
                   assert "soc" in c.power_flow()
+              # discover.scan can only probe 9000/502 -- `ports` is a filter over those
+              # two constants, not a list of ports to scan (DEF-SCAN-IGNORES-CUSTOM-PORTS).
+              # So it CANNOT confirm an emulator on an ephemeral port, and asserting a
+              # confirmed gateway here would require a listener on 9000, which is now
+              # refused. Exercise the code path and assert the honest outcome instead:
+              # nothing is on 9000, so nothing is confirmed.
               res = discover.scan(["127.0.0.1"], timeout=1.0)
-              assert res and res[0].sendmqtt_confirmed
-              print("smoke OK:", res[0].summary())
+              assert not any(r.sendmqtt_confirmed for r in res), (
+                  "something answered a login on 127.0.0.1:9000 -- a mock must never "
+                  f"listen there: {[r.summary() for r in res]}")
+              print("smoke OK: login + power_flow on", emu.port,
+                    "| scan found no gateway on :9000, as expected")
           finally:
               emu.stop()
           PY

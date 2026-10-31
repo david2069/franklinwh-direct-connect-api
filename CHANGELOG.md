@@ -32,6 +32,29 @@ uses [Semantic Versioning](https://semver.org/).
 - `docs/PROTOCOL.md` no longer lists `1821` among the unconfirmed cmdTypes — it is Debug
   Mode, documented in the same file, and the list now matches `catalog.UNCONFIRMED`.
 
+### Changed
+
+- **The emulator no longer listens on TCP 9000, and refuses to.** It now defaults to
+  **19000**, and both `Emulator(port=9000)` and `emulate --port 9000` fail with
+  "TCP 9000 is a reserved port and not available for use". That port belongs to a real
+  aGate and to the **FranklinWH Gateway Emulator** — the official emulator, which is
+  deliberately *transparent*, so something answering on 9000 is meant to be
+  indistinguishable from a gateway. This library's mock must stay distinguishable from one.
+
+  **Why a hard error rather than a warning:** a mock left running on 9000 was found by
+  `scan 127.0.0.1` and reported as `9000/sendMqtt CONFIRMED (IBG_SN=MOCK…)`. A discovery
+  result, capture or bug report that names a mock as a real gateway cannot be corrected
+  after the fact.
+
+  **`proxy` is unaffected and still listens on `0.0.0.0:9000`.** The rule is about what
+  is behind the socket, not the number: the proxy relays every byte to a real aGate and
+  never answers on its own behalf, so sitting on `:9000` between the app and the device is
+  what the tool is for.
+
+  **If you scripted `emulate --port 9000`, it will now fail** — drop the flag to get
+  19000, or pick any other free port. The documentation told you to use 9000 in five
+  places; all of them are corrected.
+
 ### Added
 
 - **Debug Mode is no longer an unknown command.** `1821` is the installer app's
