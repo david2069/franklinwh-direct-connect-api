@@ -8,6 +8,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`electricSupply` is the supply/service amperage, and `airSwitchCur` is the air-switch
+  rating — the catalogue had it backwards.** It described `electricSupply` as an undecoded
+  capability bitfield (`63 = 0b111111`) and treated `airSwitchCur` as the service amps. The
+  owner confirmed on 2026-09-27 that his site is a **63 A supply**, reading
+  `electricSupply=63` with `airSwitchCur=100`: 63 is simply 63 amps. The two differ
+  whenever the supply is smaller than the air switch can carry, so substituting one for the
+  other misreports the service rating. `docs/PROTOCOL.md` now names both fields in the
+  `1701` row instead of listing only `airSwitchCur`.
+
+### Fixed
+
 - **`__version__` no longer reports a release behind the one you installed.** It was a
   hand-maintained literal reading `0.4.0` while the published distribution was `0.5.0`,
   so anything logging the library version — a bridge recording its dependency, a bug
