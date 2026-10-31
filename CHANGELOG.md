@@ -6,6 +6,39 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- **`--wire-log-redact` wrote the site's latitude in the clear.** The aGate spells the
+  field **`laitude`**, and redaction matched field names exactly — so latitude passed
+  through while longitude and postcode were masked, and the record was still stamped
+  `"redacted": true`. The one mode whose purpose is to be safe to share was leaking, and
+  looking trustworthy while doing it.
+
+  Matching is now by exact name, `*_SN` suffix, **substring pattern** (`itude`, `postcode`,
+  `passw`, `pwd`, `_pw`, `ssid`, `serial`, `lfdi`, `sfdi`) and **whole token** (`mac`, `ip`,
+  `dns`, `gateway`, `pin`) — deliberately generous, because over-redaction is harmless in a
+  redacted log and under-redaction is a disclosure. A vendor typo can no longer defeat it.
+  Tested against 20 plausible spellings, and against ordinary fields (`machine`, `clipping`)
+  that must *not* be masked.
+
+  **If you shared a redacted wire log that included a `1201`/`1202` `time_location` read,
+  it contained your latitude.** Logs of other cmdTypes are unaffected.
+
+### Fixed
+
+- **`mode_page` was driving the off-grid command (`1723`), not the mode page (`1727`).**
+  It is an argparse alias of `mode`, and argparse reports the alias in `args.command`, so
+  a `== "mode"` test was False and execution fell through to the off-grid branch —
+  `mode_page` read off-grid state, and `--set` reached `set_offgrid` (an unhandled
+  `TypeError` was the only thing stopping it). Both commands now route on an explicit
+  marker, and the off-grid branch refuses any command that was not asked for instead of
+  being reached by fall-through.
+
+- **`tou` reported "no answer" as an empty schedule.** A non-zero `1407` result printed
+  `touStrategy: None` and exited 0 — a wrong answer presented as fact. It now reports the
+  `result`/`reason` and exits non-zero, and says that some gateways do not serve `1407`
+  at all.
+
 ### Changed
 
 - **The emulator no longer listens on TCP 9000, and refuses to.** It now defaults to

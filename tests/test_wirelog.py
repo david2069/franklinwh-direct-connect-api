@@ -267,3 +267,49 @@ def test_redaction_keeps_every_measured_list_a_list():
         assert len(out[key]) == 1
     for key in MANIFEST_SCALARS:
         assert not isinstance(out[key], list), f"{key} gained a list shape"
+
+
+# -- redaction must survive vendor misspellings ------------------------------
+def test_the_agate_latitude_misspelling_is_still_redacted():
+    """The aGate spells latitude "laitude", and the exact-name list missed it.
+
+    This was a real disclosure: `--wire-log-redact` wrote the site's latitude in
+    the clear while still stamping the record `"redacted": true` -- the one mode
+    whose entire purpose is to be safe to share. Longitude and postcode were
+    masked, which made the output look trustworthy.
+    """
+    out = redact({"laitude": -33.8688, "longitude": 151.2093, "postcode": "2069"})
+    blob = json.dumps(out)
+    for leak in ("33.8688", "151.2093", "2069"):
+        assert leak not in blob, f"{leak} leaked through redaction"
+
+
+@pytest.mark.parametrize("field", [
+    "laitude", "latitude", "Latitude", "LAITUDE", "gps_latitude", "siteLongitude",
+    "altitude", "postCode", "postal_code", "zipcode",
+    "wifi_Password", "ap_pwd", "wifiPasswd",
+    "MAC", "mac_addr", "eth0_mac", "router_ip", "dns_1",
+    "WIDGET_SN", "widget_sn", "serialNumber", "fhp_serial",
+])
+def test_plausible_spellings_of_a_sensitive_field_are_all_redacted(field):
+    """Over-redaction is harmless here; under-redaction is a disclosure.
+
+    An exact-name allowlist cannot survive a vendor typo, and this protocol has
+    several. Matching is therefore by exact name, `*_SN` suffix, substring pattern
+    and whole token -- deliberately generous.
+    """
+    out = redact({field: "SECRET-VALUE-12345"})
+    assert "SECRET-VALUE-12345" not in json.dumps(out), f"{field} was not redacted"
+
+
+@pytest.mark.parametrize("field", ["machine", "clipping", "capacity", "soc", "p_load",
+                                   "mode", "name", "serialization_mode"])
+def test_ordinary_fields_are_not_over_redacted(field):
+    """The broad patterns must not swallow telemetry. "mac" must not match
+    "machine", and "ip" must not match "clipping" -- a log that hides the data you
+    are debugging is useless."""
+    out = redact({field: "KEEP-ME"})
+    if field == "serialization_mode":
+        assert out[field] == "<redacted:7>"      # contains "serial": masked, acceptable
+    else:
+        assert out[field] == "KEEP-ME", f"{field} was over-redacted"
