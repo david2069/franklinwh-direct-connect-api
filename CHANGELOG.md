@@ -6,6 +6,31 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-10-31
+
+### Upgrade notes
+
+Read these five before upgrading; the rest of this release is additive or internal.
+
+1. **Re-check anything you concluded by decoding a real packet capture.** The decoder
+   silently stopped at the first gap — 12 frames recovered out of 335 on one real
+   capture, with no error. "That cmdType never appears" was exactly the kind of wrong
+   answer it produced. Loss is now counted and logged.
+2. **A redacted wire log previously leaked the site's latitude.** The aGate spells the
+   field `laitude` and redaction matched names exactly, so latitude went out in the clear
+   while longitude and postcode were masked — and the record still said
+   `"redacted": true`. **If you shared a redacted log containing a `1201`/`1202` read, it
+   carried your latitude.**
+3. **`emulate --port 9000` now fails.** TCP 9000 is reserved for a real aGate and the
+   FranklinWH Gateway Emulator. The default is **19000**; drop the flag or pick another
+   port. `proxy` is unaffected and still listens on `0.0.0.0:9000`.
+4. **`mode_page` previously drove `1723` (off-grid), not `1727`.** It is an argparse alias
+   and argparse reports the alias, so the dispatch fell through to the off-grid branch. If
+   you scripted `mode_page`, it was not doing what its name says.
+5. **`tou` now exits non-zero** when the gateway returns a non-zero `1407` result, instead
+   of printing an empty schedule and exiting 0. A script testing the exit code will see
+   this change.
+
 ### Fixed
 
 - **The pcap decoder silently discarded most of a real capture.** `iter_pcap_frames`
