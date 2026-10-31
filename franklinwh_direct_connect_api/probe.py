@@ -242,7 +242,14 @@ def discover_serials(client: DirectConnectClient) -> list[str]:
     serials: list[str] = []
 
     def _add(value: Any) -> None:
-        if isinstance(value, str) and value and value not in serials:
+        # FHP_SN arrives as a LIST of aPower serials (one per unit); BMS_SN and
+        # devMap[].devSN are plain strings. A string-only guard silently dropped
+        # every aPower serial — see DEF-PROBE-SERIAL-LIST-DROPPED.
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                if isinstance(item, str) and item and item not in serials:
+                    serials.append(item)
+        elif isinstance(value, str) and value and value not in serials:
             serials.append(value)
 
     try:

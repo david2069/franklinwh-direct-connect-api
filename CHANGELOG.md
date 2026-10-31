@@ -6,6 +6,32 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`probe` now finds the aPower serials instead of silently dropping them.** Serial
+  discovery accepted only string values, while `FHP_SN` is a **list** of aPower serials
+  (one per unit) — so every aPower serial was skipped with no error, leaving only the
+  `BMS_SN`. Measured: a manifest of `{"FHP_SN": ["SN-A", "SN-B"], "BMS_SN": "BMS-1"}`
+  returned just `["BMS-1"]`. Both shapes are now handled, because which one the real
+  gateway sends is **unverified** (see below). Workaround until now was `--serial SN`.
+
+- **The mock aGate no longer contradicts itself about how many aPowers it has.** The
+  emulator's login manifest hardcoded `FHP_NUM: 1` and one serial, so a mock started with
+  `--units 3` reported three units on `device_check` and one on login. `FHP_NUM` and
+  `FHP_SN` now follow the unit count and name the same serials `device_check` does.
+
+### Changed
+
+- **Documented what the login manifest does *not* establish.** Whether the per-aPower
+  manifest fields (`FPGA_VER`, `DCDC_VER`, `INV_VER`, `BMS_VER`, `BL_VER`, `TH_VER`,
+  `BMS_SN`, `PE_SN`) are lists or scalars is **unverified**: there is no `1102` capture in
+  this repository, so the emulator's shape is synthesis, not evidence, and
+  `FIRMWARE_FIELDS` being a flat tuple is not a claim either way. `docs/PROTOCOL.md` now
+  says so rather than implying the shape is known.
+
+- `docs/PROTOCOL.md` no longer lists `1821` among the unconfirmed cmdTypes — it is Debug
+  Mode, documented in the same file, and the list now matches `catalog.UNCONFIRMED`.
+
 ### Security
 
 - **`--wire-log-redact` wrote the site's latitude in the clear.** The aGate spells the
@@ -193,7 +219,6 @@ uses [Semantic Versioning](https://semver.org/).
   string after believing the job was done), and each says the date moved rather than letting
   the earlier promise disappear. **Nothing was removed** — the aliases still work and
   still return the same objects.
-
 ### Documentation
 
 - **The comparison document no longer claims the bridge's features as this library's.**

@@ -77,8 +77,33 @@ def test_mode_list_and_manifest_shape():
 
     manifest = site.login_manifest()
     assert manifest["IBG_SN"] == site.serial
-    assert manifest["FHP_SN"] == [site.fhp_serial]
+    # One unit by default, and the serial is the SAME one device_check names for
+    # unit 1 — the two cmdTypes used to disagree (DEF-EMULATOR-1102-FHPNUM-HARDCODED).
+    assert manifest["FHP_NUM"] == 1
+    assert manifest["FHP_SN"] == [site.apower_serial(1)]
     assert "protocolVer" in manifest
+
+
+def test_login_manifest_scales_with_unit_count():
+    """1102 FHP_NUM/FHP_SN follow the aPower count and agree with 1106's roster.
+
+    The manifest hardcoded one unit, so a 3-aPower mock reported devNum=3 on 1106
+    and FHP_NUM=1 here. Shape caveat: whether the REAL 1102 sends FHP_SN as a list
+    is unverified (no 1102 capture exists here) — this pins mock self-consistency.
+    """
+    site = SyntheticSite(7)
+    manifest = site.login_manifest(3)
+    assert manifest["FHP_NUM"] == 3
+    assert len(manifest["FHP_SN"]) == 3
+    assert len(set(manifest["FHP_SN"])) == 3           # distinct units
+
+    roster = [u["devSN"] for u in site.device_check(3)["devMap"]]
+    assert manifest["FHP_SN"] == roster                # 1102 and 1106 name the same units
+
+    # Degenerate inputs stay a one-unit site rather than producing an empty roster.
+    for bad in (0, -1):
+        assert site.login_manifest(bad)["FHP_NUM"] == 1
+        assert len(site.login_manifest(bad)["FHP_SN"]) == 1
 
 
 # -- Emulator wired to a SyntheticSite ---------------------------------------
@@ -126,6 +151,11 @@ def test_emulator_multi_apower():
             assert dc["devNum"] == 3
             serials = [u["devSN"] for u in dc["devMap"]]
             assert len(set(serials)) == 3                 # distinct serials
+            # The login manifest agrees with the roster over the wire, not just
+            # in-process: FHP_NUM is the unit count and FHP_SN names the same units.
+            manifest = c.login()
+            assert manifest["FHP_NUM"] == 3
+            assert manifest["FHP_SN"] == serials
             socs = [c.battery_cells(i)["batSoc"] for i in (1, 2, 3)]
             assert socs[0] > socs[1] > socs[2]            # perturbed per unit
             # DCDCStatus is a valid decoded state (our verified 4/6/7 map)

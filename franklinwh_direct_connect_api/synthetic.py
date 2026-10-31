@@ -240,14 +240,26 @@ class SyntheticSite:
         return {"opt": 0, "result": 0, "current_id": MODE_IDS[current], "list": entries}
 
     # -- 1102 login manifest -------------------------------------------------
-    def login_manifest(self) -> dict[str, Any]:
-        """Build the 1102 login/firmware manifest payload (seeded IBG_SN/FHP_SN + *_VER)."""
+    def login_manifest(self, units: int = 1) -> dict[str, Any]:
+        """Build the 1102 login/firmware manifest payload (seeded IBG_SN/FHP_SN + *_VER).
+
+        ``units`` is the aPower count, as ``device_check`` takes it. It previously
+        hardcoded one unit, so an N-aPower mock reported N on 1106 and 1 here and
+        contradicted itself (DEF-EMULATOR-1102-FHPNUM-HARDCODED). The serials come
+        from ``apower_serial`` so the two cmdTypes name the same units.
+
+        The *_VER values are invented, and the real manifest carries fields this does
+        not emit at all (FPGA_VER, BL_VER, TH_VER, SyHdVersion, BMS_SN, PE_SN). Which
+        of them are per-aPower lists is UNVERIFIED — no 1102 capture exists in this
+        repo (DEF-NO-1102-CAPTURE). Do not read this shape as evidence of the wire.
+        """
+        count = max(1, int(units))
         return {
             "opt": 0,
             "result": 0,
             "IBG_SN": self.serial,
-            "FHP_NUM": 1,
-            "FHP_SN": [self.fhp_serial],
+            "FHP_NUM": count,
+            "FHP_SN": [self.apower_serial(i + 1) for i in range(count)],
             "protocolVer": "V1.11.01",
             "IBG_VER": "V12R02B30D06",
             "APP_VER": "V2.0.0",

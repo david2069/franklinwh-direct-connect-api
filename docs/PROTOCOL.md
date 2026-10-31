@@ -110,7 +110,7 @@ history — all of which are in that listing and in
 
 | Request → Reply | Name | dataArea highlights |
 |---|---|---|
-| 1101 → 1102 | login | req `{opt, minProtocolVer}`; reply: IBG_SN, FHP_SN, BMS_SN, PE_SN, all `*_VER` |
+| 1101 → 1102 | login | req `{opt, minProtocolVer}`; reply: IBG_SN, FHP_SN, BMS_SN, PE_SN, all `*_VER` (field shapes unverified — see below) |
 | 1109 → 1110 | wifi_scan | nearby APs |
 | 1111 → 1112 | wifi_config | wifi_SSID, **wifi_Pw**, ap_SSID, ap_Pw, wifi_Safety |
 | 1113 → 1114 | connectivity | routerStatus, netStatus, awsStatus |
@@ -141,7 +141,25 @@ history — all of which are in that listing and in
 >
 > **Unconfirmed cmdTypes** (respond `result:0` but with minimal/placeholder fields;
 > purpose not yet confirmed against the installer app): `1207 {enable,mode}`,
-> `1209 {enable}`, `1821 {enable}`, `1823 {powerOn,powerOff}`, `1825 {power}`.
+> `1209 {enable}`, `1823 {powerOn,powerOff}`, `1825 {power}`. This matches
+> `catalog.UNCONFIRMED` exactly. `1821 {enable}` was on this list until it was
+> identified as **Debug Mode** and verified by write and read-back — see
+> [Debug Mode (1821)](#debug-mode-1821-and-the-grid-power-plane-limits-1701) below.
+
+#### What the 1102 login manifest does *not* tell you
+
+The login reply carries the serial/version manifest, and `client.FIRMWARE_FIELDS` names
+the 17 fields this library extracts from it. **Which of them are per-aPower lists and
+which are scalars is unverified.** `FHP_SN` is handled as a list of aPower serials
+alongside `FHP_NUM`, and that is what this library's emulator serves — but there is **no
+1102 capture in this repository** to confirm it, so the emulator's shape is synthesis,
+not evidence. Six of the named fields (`FPGA_VER`, `BL_VER`, `TH_VER`, `SyHdVersion`,
+`BMS_SN`, `PE_SN`) are not produced by the emulator at all.
+
+`FIRMWARE_FIELDS` is a flat key filter and `firmware()` passes values through verbatim,
+so **the flat tuple is not a claim that these fields are scalar.** Settling it needs one
+live 1102 off real hardware, recorded with the firmware version and the serials masked
+(BACKLOG `DEF-NO-1102-CAPTURE`).
 
 ### Writes (control) — the `opt` convention
 
