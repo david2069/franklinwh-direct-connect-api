@@ -184,3 +184,37 @@ def test_every_unmapped_code_is_genuinely_local_only():
         "unknown_1207", "unknown_1209", "unknown_1821", "unknown_1823", "unknown_1825",
     }
     assert unmapped == expected
+
+
+# -- an alias must not change which cmdType is driven ------------------------
+def test_mode_page_alias_routes_to_mode_not_offgrid():
+    """`mode_page` is an alias of `mode`, and must drive 1725/1727 -- not 1723.
+
+    argparse sets `args.command` to the ALIAS the user typed, so a branch written
+    as `args.command == "mode"` was False for `mode_page` and execution fell
+    through to the OFF-GRID branch. A command documented as the catalogue's name
+    for 1727 was reading 1723, and `--set` reached `set_offgrid`.
+
+    Branching on an explicit `_kind` marker is what makes an alias safe.
+    """
+    from franklinwh_direct_connect_api import cli
+
+    for name in ("mode", "mode_page"):
+        args = cli.build_parser().parse_args([name])
+        assert getattr(args, "_kind", None) == "mode", (
+            f"{name} must route as 'mode'; got {getattr(args, '_kind', None)!r}")
+
+    og = cli.build_parser().parse_args(["offgrid"])
+    assert og._kind == "offgrid"
+
+
+def test_every_dedicated_control_parser_declares_its_kind():
+    """Any dedicated control command that forgets `_kind` can fall into the wrong
+    branch, which is exactly how the mode_page defect happened. Catch it here
+    rather than in someone's gateway."""
+    from franklinwh_direct_connect_api import cli
+
+    sub = next(a for a in cli.build_parser()._actions if getattr(a, "choices", None))
+    for name in ("mode", "mode_page", "offgrid"):
+        args = sub.choices[name].parse_args([])
+        assert getattr(args, "_kind", None), f"{name} has no _kind marker"

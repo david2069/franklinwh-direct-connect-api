@@ -683,7 +683,8 @@ def _cmd_control(args: argparse.Namespace) -> int:
             if args.equip is None:
                 c.login()
 
-            if args.command == "mode":
+            kind = getattr(args, "_kind", args.command)
+            if kind == "mode":
                 if args.set is None:  # read
                     if args.raw:  # full on-the-wire frame (envelope + dataArea)
                         fr = c.transport.request(catalog.Cmd.MODE_LIST, c.equip_no, {"opt": 1})
@@ -719,7 +720,15 @@ def _cmd_control(args: argparse.Namespace) -> int:
                           f"current_id {before} -> {after}")
                 return 0 if reply.get("result") == 0 else 1
 
-            # offgrid
+            # Explicit, not a fall-through. This branch WRITES the off-grid state, so an
+            # unrecognised command must never reach it: `mode_page` used to, because
+            # argparse reports the alias and the mode test compared the literal string.
+            if kind != "offgrid":
+                print(f"error: internal routing -- '{args.command}' reached the off-grid "
+                      f"branch (kind={kind!r}). Refusing to act on a control command "
+                      "that was not asked for.", file=sys.stderr)
+                return 2
+
             if args.set is None:  # read
                 if args.raw:  # full on-the-wire frame
                     fr = c.transport.request(catalog.Cmd.OFFGRID, c.equip_no, {"opt": 0})
@@ -919,6 +928,17 @@ def _cmd_tou(args: argparse.Namespace) -> int:
     except (OSError, TransportError, TimeoutError, ValueError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
+
+    # A non-zero result means the gateway did NOT serve a schedule. Printing the empty
+    # payload anyway rendered "touStrategy: None" with exit 0 -- a wrong answer presented
+    # as fact, and the reason the 1407 gap was nearly mis-attributed. Say what came back.
+    result, reason = payload.get("result"), payload.get("reason")
+    if result not in (0, None):
+        print(f"error: the gateway did not return a TOU schedule "
+              f"(1407 result={result} reason={reason}). This is not an empty schedule -- "
+              f"it is no answer. Some firmware/gateways do not serve 1407 at all.",
+              file=sys.stderr)
+        return 1
 
     if args.json:
         json.dump({
@@ -1546,6 +1566,10 @@ def build_parser() -> argparse.ArgumentParser:
     # name resolves to a command (see live_commands / DEF-CLI-CATALOG-DRIFT).
     md = sub.add_parser("mode", aliases=["mode_page"],
                         help="live: show current mode, or --set it")
+    # Branch on this, never on args.command: argparse sets args.command to the ALIAS the
+    # user typed, so `mode_page` did not equal "mode" and fell through to the OFF-GRID
+    # branch -- a command documented as 1727 was driving 1723. See DEF-CLI-MODE-PAGE-ALIAS.
+    md.set_defaults(_kind="mode")
     md.add_argument("--set", metavar="MODE",
                     help="set mode by id, full name, or alias (tou / self / backup)")
     md.add_argument("--list", action="store_true", help="list all modes + details")
@@ -1560,6 +1584,7 @@ def build_parser() -> argparse.ArgumentParser:
     gp.set_defaults(func=_cmd_grid_profile)
 
     og = sub.add_parser("offgrid", help="live: show off-grid status, or --set on/off")
+    og.set_defaults(_kind="offgrid")
     og.add_argument("--set", choices=["on", "off"], dest="set",
                     help="on = go off-grid, off = reconnect")
     og.add_argument("--soc", type=int, default=5, help="floor SoC%% while islanded")
