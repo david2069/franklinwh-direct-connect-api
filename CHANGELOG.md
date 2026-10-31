@@ -6,6 +6,15 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-11-01
+
+### Upgrade notes
+
+- **`debug_mode` on the command line never worked and was broken in 0.5.1.** Every
+  invocation raised `NameError` before opening a socket. If you tried it and concluded
+  your gateway was unreachable, it was this. The library methods
+  `client.debug_mode()` / `set_debug_mode()` were unaffected.
+
 ### Fixed
 
 - **`franklinwh-direct-connect debug_mode` could never run.** It called a helper
