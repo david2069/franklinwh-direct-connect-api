@@ -56,6 +56,7 @@ from .transport import DirectConnectTransport, TransportError
 from .discover import HostResult, expand_targets, scan
 from .emulator import Emulator
 from .proxy import log_frame, serve as proxy_serve
+from .wirelog import SENSITIVE_FIELDS, WireLog, redact
 
 # Single source of truth is pyproject.toml, read back through the installed
 # distribution metadata. A hand-maintained literal here drifted to 0.4.0 while the
@@ -104,5 +105,8 @@ __all__ = [
     "expand_targets",
     "proxy_serve",
     "log_frame",
+    "WireLog",
+    "SENSITIVE_FIELDS",
+    "redact",
     "__version__",
 ]
