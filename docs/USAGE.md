@@ -65,10 +65,17 @@ in the README.
 Three commands that need neither an aGate nor a network, as a check that the install
 works:
 
+!!! danger "TCP 9000 is a reserved port"
+    The emulator **refuses to start on TCP 9000** and defaults to **19000**. That port
+    belongs to a real aGate and to the **FranklinWH Gateway Emulator**, the official and
+    deliberately transparent emulator. This library's mock must stay distinguishable from
+    a gateway — a mock left on 9000 once appeared in a LAN scan as
+    `9000/sendMqtt CONFIRMED`.
+
 ```bash
 franklinwh-direct-connect catalog                            # the 70 known cmdTypes
 franklinwh-direct-connect decode tests/fixtures/smoke.pcap   # decode a bundled capture
-franklinwh-direct-connect emulate --port 9000                # a fake aGate; Ctrl-C to stop
+franklinwh-direct-connect emulate                            # a fake aGate on 19000; Ctrl-C to stop
 ```
 
 (`tests/fixtures/smoke.pcap` ships in the git checkout, not the wheel.) With the emulator
@@ -368,12 +375,12 @@ wrong for several: gateways modelling ONE site must agree on the time of day, or
 deriving the site clock from a gateway gets a different answer per gateway.
 
 ```bash
-franklinwh-direct-connect emulate --port 9001 --seed 1 --tz-offset 10
-franklinwh-direct-connect emulate --port 9002 --seed 2 --tz-offset 10   # same site, same clock
+franklinwh-direct-connect emulate --port 19001 --seed 1 --tz-offset 10
+franklinwh-direct-connect emulate --port 19002 --seed 2 --tz-offset 10  # same site, same clock
 ```
 
 ```bash
-franklinwh-direct-connect emulate --port 9000
+franklinwh-direct-connect emulate
 # in another shell:
 franklinwh-direct-connect --host 127.0.0.1 power_flow
 franklinwh-direct-connect scan 127.0.0.1      # finds and CONFIRMS it, like a real aGate

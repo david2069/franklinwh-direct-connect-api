@@ -283,12 +283,36 @@ def _cmd_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _emulate_port(value: str) -> int:
+    """Argparse type for ``emulate --port``: rejects the reserved port.
+
+    Defence in depth. ``Emulator.__init__`` refuses 9000 too, but validating at
+    parse time means the CLI can never reach the point of binding a socket -- and a
+    test for this cannot hang waiting on a server that should never have started.
+    """
+    port = int(value)
+    if port == _emulator.Emulator.RESERVED_PORT:
+        raise argparse.ArgumentTypeError(
+            f"TCP {port} is a reserved port and not available for use -- it belongs to a "
+            "real aGate and to the FranklinWH Gateway Emulator (the official, transparent "
+            f"emulator). Use the default {_emulator.Emulator.DEFAULT_PORT}, or another "
+            "free port."
+        )
+    return port
+
+
 def _cmd_emulate(args: argparse.Namespace) -> int:
-    return _emulator.run(
-        args.bind, args.port, args.equip or _emulator.DEFAULT_EQUIP,
-        seed=args.seed, serial=args.serial, dynamic=not args.static,
-        units=args.units, tz_offset_hours=args.tz_offset,
-    )
+    try:
+        return _emulator.run(
+            args.bind, args.port, args.equip or _emulator.DEFAULT_EQUIP,
+            seed=args.seed, serial=args.serial, dynamic=not args.static,
+            units=args.units, tz_offset_hours=args.tz_offset,
+        )
+    except ValueError as e:
+        # The reserved-port refusal, reported as a clean error rather than a
+        # traceback -- a user who typed --port 9000 needs the reason, not a stack.
+        print(f"error: {e}", file=sys.stderr)
+        return 2
 
 
 def _wait_port(host: str, port: int, *, want_up: bool, timeout: float,
@@ -1504,7 +1528,12 @@ def build_parser() -> argparse.ArgumentParser:
     em = sub.add_parser("emulate", help="run a fake aGate broker for testing")
     em.add_argument("--bind", default="127.0.0.1",
                     help="host/IP to bind (default 127.0.0.1; use 0.0.0.0 in containers)")
-    em.add_argument("--port", type=int, default=9000)
+    em.add_argument("--port", type=_emulate_port, default=_emulator.Emulator.DEFAULT_PORT,
+                    help=f"listen port (default {_emulator.Emulator.DEFAULT_PORT}). "
+                         f"TCP {_emulator.Emulator.RESERVED_PORT} is REFUSED: it is "
+                         "reserved for a real aGate and for the official FranklinWH "
+                         "Gateway Emulator, so this mock stays distinguishable from a "
+                         "gateway")
     em.add_argument("--seed", type=int, default=None,
                     help="enable the dynamic per-seed synthetic site (unique serial + "
                          "live-moving power/mode curve); omit for canned/pcap replies")
