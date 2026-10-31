@@ -34,3 +34,5 @@ probe_gaps.py
 
 # Owner-private notes: local only, never committed (site data, captures, unpublished findings)
 private/
+tests/results/*
+!tests/results/README.md

@@ -1,10 +1,41 @@
 # FranklinWH Direct Connect
 
-Unofficial Python library and CLI for the FranklinWH aGate **local broker
-protocol** — the JSON `cmdType` frames exchanged over **TCP/9000**, the local
-interface the official FranklinWH app calls **"Direct Connect."** This is the
-lower-level device↔broker channel that the cloud `sendMqtt` REST relay (see
+This library is a **proof-of-concept demonstration** of how to talk to a FranklinWH
+aGate over the (undocumented, unofficial) **FranklinWH Direct Connect** local API —
+the JSON `cmdType` frames exchanged over **TCP/9000**. It is the lower-level
+device↔broker channel that the cloud `sendMqtt` REST relay (see
 [`franklinwh-cloud`](https://github.com/david2069/franklinwh-cloud)) sits on top of.
+
+!!! info "On the names"
+    *Direct Connect* is FranklinWH's own term for the gateway's local protocol. This
+    project implements it, and is the **library and CLI** — not an application. The
+    [Direct Connect Bridge](https://github.com/david2069/franklinwh-direct-connect-bridge)
+    is the application built on top of it, and is where a REST API, MQTT, Home Assistant
+    entities and a web UI live. Using FranklinWH's term implies **no affiliation with,
+    endorsement by, or support from FranklinWH**.
+
+    The PyPI distribution is `franklinwh-direct-connect-api`, the import package is
+    `franklinwh_direct_connect_api`, and the CLI is `franklinwh-direct-connect`. The
+    pre-0.4.0 spellings still work, because removing them would break existing code —
+    `franklinwh_local` returns the *same* module objects, `franklinwh-local` is the same
+    entry point, and `LocalClient`/`LocalTransport` remain class aliases.
+
+!!! warning "Not for production, and compatibility is not guaranteed"
+    **There is no guarantee this is compatible with your FranklinWH gateway(s),
+    aPower(s) or connectivity — now or in the future.** FranklinWH
+    ***<u>may change, block or deprecate this interface at any time</u>***.
+
+    Tested on a LAN against **one** aGate X with **one** aPower, most recently on
+    `IBG_VER V12R02B60D00_260924` / `protocolVer V1.12.02` (read 2026-10-31). One site
+    on one firmware is a hypothesis, not a compatibility matrix — **multi-aPower
+    behaviour is unobserved**, and anything marked UNCONFIRMED has not been proven on
+    any hardware.
+
+!!! tip "No gateway? Run the emulator first"
+    A deterministic synthetic aGate with N aPowers — live telemetry, energy history,
+    smart circuits, and writes that persist — so you can see the whole thing work before
+    connecting real hardware. It is a development aid: it serves what it was told to
+    serve, so it is **not** evidence of how real hardware behaves.
 
 !!! warning "Status: alpha"
     Reverse-engineered from packet captures. Frame parsing/encoding and the
@@ -14,7 +45,8 @@ lower-level device↔broker channel that the cloud `sendMqtt` REST relay (see
 !!! danger "Important Disclaimer"
     This library is **unofficial** and **not endorsed, supported, or affiliated with FranklinWH** in any way.
     It speaks FranklinWH's **undocumented** aGate Direct Connect (local broker) protocol, reverse-engineered
-    from packet captures — it may change, break, or become unavailable without notice.
+    from packet captures.
+    It ***<u>may change, break, or become unavailable without notice</u>***.
 
     It is provided **"AS IS"**, for **informational and educational purposes**, without warranty of any
     kind, express or implied, including but not limited to warranties of merchantability or **fitness for
@@ -26,7 +58,7 @@ lower-level device↔broker channel that the cloud `sendMqtt` REST relay (see
     **By using this library, you acknowledge that:**
 
     - You are accessing an interface not intended for your use
-    - The protocol may change or become unavailable at any time
+    - The protocol ***<u>may change or become unavailable at any time</u>***
     - You assume all risk associated with its use
     - You will use it responsibly and keep your gateway/grid settings compliant with the official FranklinWH
       app and installer configuration
