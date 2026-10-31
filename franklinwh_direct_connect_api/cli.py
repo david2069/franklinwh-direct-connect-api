@@ -253,6 +253,33 @@ def _cmd_scan(args: argparse.Namespace) -> int:
     if len(targets) > 4096:
         print(f"error: {len(targets)} hosts is a lot; narrow the range", file=sys.stderr)
         return 2
+    if getattr(args, "ports", None):
+        try:
+            ports = _discover.expand_ports(args.ports)
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+        print(f"scanning {len(targets)} host(s) x {len(ports)} port(s) …", file=sys.stderr)
+        try:
+            pres = _discover.scan_ports(
+                targets, ports, timeout=args.timeout, workers=args.workers,
+                probe=not args.no_probe,
+            )
+        except KeyboardInterrupt:
+            print("\nscan interrupted.", file=sys.stderr)
+            return 130
+        if args.json:
+            json.dump([{"host": r.host, "port": r.port, "open": r.open,
+                        "confirmed": r.confirmed, "manifest": r.manifest}
+                       for r in pres], sys.stdout, indent=2)
+            print()
+        else:
+            for r in pres:
+                print(r.summary())
+        print(f"\nscanned {len(targets)} host(s) x {len(ports)} port(s), "
+              f"{sum(1 for r in pres if r.confirmed)} confirmed", file=sys.stderr)
+        return 0
+
     print(f"scanning {len(targets)} host(s) …", file=sys.stderr)
     try:
         results = _discover.scan(
@@ -1474,6 +1501,13 @@ def build_parser() -> argparse.ArgumentParser:
             "  <lo>-<hi>        IP range, e.g. 192.0.2.1-192.0.2.50\n"
             "  <a>,<b>,...      comma-separated mix of the above"
         ),
+    )
+    sc.add_argument(
+        "--ports", metavar="SPEC",
+        help="scan these Direct Connect ports instead of the defaults, e.g. "
+             "'9000' or '9000,9020-9030'. One result per host AND port, so two "
+             "listeners on one address are two rows. Modbus is not probed in this "
+             "mode — omit --ports for the usual 9000+502 scan",
     )
     sc.add_argument(
         "--timeout", type=float, default=0.5,
