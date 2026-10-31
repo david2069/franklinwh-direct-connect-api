@@ -218,3 +218,42 @@ def test_every_dedicated_control_parser_declares_its_kind():
     for name in ("mode", "mode_page", "offgrid"):
         args = sub.choices[name].parse_args([])
         assert getattr(args, "_kind", None), f"{name} has no _kind marker"
+
+
+# -- a command that cannot even be invoked must not ship ---------------------
+def test_every_name_called_in_cli_is_actually_defined():
+    """Catches the whole class of defect that shipped `debug_mode` broken.
+
+    `_cmd_debug_mode` called `_client(args)` -- a helper that exists nowhere in
+    the module. Every invocation raised NameError before opening a socket, so the
+    command had NEVER worked, and it went out in 0.5.1.
+
+    Nothing caught it: the client methods were tested directly, and the CLI tests
+    only checked the subcommand was REGISTERED, never that its handler could run.
+    A static check is the cheap guard -- it needs no emulator and no network.
+    """
+    import ast
+    import builtins
+    from pathlib import Path
+
+    from franklinwh_direct_connect_api import cli
+
+    tree = ast.parse(Path(cli.__file__).read_text())
+    defined = {n.name for n in ast.walk(tree)
+               if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
+    imported: set[str] = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom):
+            imported |= {a.asname or a.name for a in n.names}
+        elif isinstance(n, ast.Import):
+            imported |= {(a.asname or a.name).split(".")[0] for a in n.names}
+    assigned = {t.id for n in ast.walk(tree) if isinstance(n, ast.Assign)
+                for t in n.targets if isinstance(t, ast.Name)}
+    known = defined | imported | assigned | set(dir(builtins))
+
+    called = {n.func.id for n in ast.walk(tree)
+              if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+    missing = sorted(c for c in called if c not in known)
+    assert not missing, (
+        f"cli.py calls names that are never defined or imported: {missing}. "
+        "Every one of these raises NameError at runtime.")

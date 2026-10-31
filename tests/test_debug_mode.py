@@ -10,6 +10,7 @@ The safety property is what these tests mostly protect: turning Debug Mode ON st
 normal battery operation, so the write verifies by read-back and never reports success on
 an acknowledgement alone.
 """
+import json
 from pathlib import Path
 
 import pytest
@@ -187,3 +188,37 @@ def test_nothing_in_the_library_detects_debug_mode_from_run_status():
         "Debug Mode must be read from 1821 enable (client.debug_mode()), not "
         f"run_status == 8 -- a measured Debug Mode read 0: {offenders}"
     )
+
+
+def test_the_debug_mode_cli_command_actually_runs(capsys):
+    """End to end through `main()`, not just the parser.
+
+    The CLI path shipped broken in 0.5.1 while every library-level test here
+    passed, because none of them went through the command handler. This closes
+    that gap: it reads Debug Mode over a real socket to the emulator.
+    """
+    from franklinwh_direct_connect_api import cli
+    from franklinwh_direct_connect_api.emulator import Emulator
+
+    emu = Emulator("127.0.0.1", 0).start()
+    try:
+        rc = cli.main(["--host", "127.0.0.1", "--port", str(emu.port), "debug_mode"])
+        out = capsys.readouterr().out
+        assert rc == 0, f"debug_mode exited {rc}"
+        assert "Debug Mode:" in out, out
+    finally:
+        emu.stop()
+
+
+def test_the_debug_mode_cli_json_path_runs(capsys):
+    from franklinwh_direct_connect_api import cli
+    from franklinwh_direct_connect_api.emulator import Emulator
+
+    emu = Emulator("127.0.0.1", 0).start()
+    try:
+        rc = cli.main(["--host", "127.0.0.1", "--port", str(emu.port),
+                       "debug_mode", "--json"])
+        assert rc == 0
+        assert json.loads(capsys.readouterr().out).get("result") == 0
+    finally:
+        emu.stop()
