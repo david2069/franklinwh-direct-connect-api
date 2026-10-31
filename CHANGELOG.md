@@ -6,6 +6,20 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`franklinwh-direct-connect debug_mode` could never run.** It called a helper
+  `_client(args)` that exists nowhere in the module, so every invocation — read and
+  `--set` alike — raised `NameError` before opening a socket. It shipped that way in
+  0.5.1. The library methods `client.debug_mode()` / `set_debug_mode()` were unaffected
+  and were the workaround.
+
+  Nothing caught it because the library methods were tested directly and the CLI tests
+  only checked the subcommand was *registered*, never that its handler could run. Two
+  guards now: the command is exercised end to end against the emulator, and a static
+  check asserts every name `cli.py` calls is actually defined or imported — which would
+  have caught this before release, with no emulator and no network.
+
 ## [0.5.1] — 2026-10-31
 
 ### Upgrade notes
