@@ -182,3 +182,81 @@ def test_frame_roundtrips_for_a_foreign_serial():
     assert fr.seed == protocol.derive_seed(sn)
     assert fr.data_area == {"opt": 0}
     assert fr.verify()
+
+
+# -- a damaged stream must not silently discard everything after the damage ---
+def _three_frames() -> bytes:
+    from franklinwh_direct_connect_api.protocol import encode_frame
+    return b"".join(
+        encode_frame(1301, "FAKEGATE90FJ09J6H4F2", {"opt": 0, "n": i},
+                     time_stamp=1700000000 + i, snno=i)
+        for i in range(3)
+    )
+
+
+def test_feed_resynchronises_past_garbage_instead_of_stopping():
+    """One unparseable region used to discard the whole rest of the stream.
+
+    `_try_one` returned (None, 0) for BOTH "need more bytes" and "skipped
+    garbage", and `feed` broke on either. A real 1508-packet capture decoded as
+    12 frames with no error; resynchronising recovered 335.
+    """
+    from franklinwh_direct_connect_api.protocol import FrameStream
+
+    blob = _three_frames()
+    damaged = blob[:len(blob) // 3] + b"\x00" * 64 + blob[len(blob) // 3:]
+
+    # feed() ALONE must get past the damage. Calling flush() here too would mask
+    # the fix -- flush recovers it either way, which is how a first version of
+    # this test passed with the change reverted and proved nothing.
+    fs = FrameStream()
+    frames = fs.feed(damaged)
+    assert len(frames) >= 2, (
+        f"feed() stopped at the damage and recovered only {len(frames)} frames; "
+        "it must resynchronise and continue")
+    assert fs.skipped_bytes > 0, "damage was not reported as skipped bytes"
+
+
+def test_flush_recovers_a_frame_that_feed_must_wait_on():
+    """`feed` waits on an incomplete frame; `flush` says no more bytes are coming.
+
+    That distinction is the whole fix: waiting is right for a socket and fatal
+    for a file.
+    """
+    from franklinwh_direct_connect_api.protocol import FrameStream
+
+    blob = _three_frames()
+    truncated = blob[:-20]                      # last frame cut short
+
+    fs = FrameStream()
+    during = fs.feed(truncated)
+    after = fs.flush()
+    assert len(during) >= 2
+    assert len(during) + len(after) >= 2
+    assert not fs._buf, "flush must leave nothing buffered"
+
+
+def test_feed_still_waits_for_an_incomplete_frame_on_a_live_stream():
+    """The streaming path must NOT resync eagerly -- a split frame is normal.
+
+    If feed() discarded a partial frame, every frame split across two TCP reads
+    would be lost on a live socket. Verified by splitting mid-frame.
+    """
+    from franklinwh_direct_connect_api.protocol import FrameStream
+
+    blob = _three_frames()
+    cut = len(blob) - 10
+    fs = FrameStream()
+    first = fs.feed(blob[:cut])
+    second = fs.feed(blob[cut:])
+    assert len(first) + len(second) == 3, "a split frame was lost"
+    assert fs.skipped_bytes == 0, "a clean split must not count as damage"
+
+
+def test_a_clean_stream_reports_no_skipped_bytes():
+    from franklinwh_direct_connect_api.protocol import FrameStream
+
+    fs = FrameStream()
+    frames = fs.feed(_three_frames()) + fs.flush()
+    assert len(frames) == 3
+    assert fs.skipped_bytes == 0

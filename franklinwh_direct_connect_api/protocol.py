@@ -32,8 +32,11 @@ Set ``cipher=False`` to read/write the cleartext cloud-REST variant
 from __future__ import annotations
 
 import json
+import logging
 import re
 import struct
+
+_log = logging.getLogger(__name__)
 import zlib
 from dataclasses import dataclass, field
 from typing import Any, Iterator
@@ -262,16 +265,59 @@ class FrameStream:
     def __init__(self, cipher: bool = True):
         self._buf = bytearray()
         self._cipher = cipher
+        #: Bytes discarded while resynchronising, across the life of this stream.
+        #: Non-zero means the input was damaged and some frames were NOT decoded --
+        #: check it rather than assuming a clean decode. See :meth:`flush`.
+        self.skipped_bytes = 0
 
     def feed(self, data: bytes) -> list[Frame]:
+        """Decode every complete frame currently buffered.
+
+        A region that cannot be parsed is skipped and decoding CONTINUES. It used
+        to stop: ``_try_one`` returned ``(None, 0)`` for both "need more bytes" and
+        "skipped garbage", and ``feed`` broke on either -- so one damaged frame
+        silently discarded the rest of the stream. Those two cases are now
+        distinguished by ``consumed``.
+        """
         self._buf.extend(data)
         out: list[Frame] = []
         while True:
             frame, consumed = self._try_one()
-            if frame is None:
+            if frame is not None:
+                out.append(frame)
+                del self._buf[:consumed]
+                continue
+            if consumed > 0:          # resynchronised past garbage -- keep going
+                continue
+            break                     # genuinely need more bytes
+        return out
+
+    def flush(self) -> list[Frame]:
+        """Decode what remains when NO more bytes are coming (a file, not a socket).
+
+        ``feed`` must wait when a frame's JSON is incomplete, because on a live
+        socket the rest is still in flight. For a capture the buffer is already
+        complete, so waiting means losing everything after the first gap -- which
+        is exactly what happened: a 1508-packet capture decoded as 12 frames with
+        no error reported, and resynchronising recovered 335.
+
+        Call this after the final ``feed``. Skipped bytes are counted in
+        :attr:`skipped_bytes`.
+        """
+        out: list[Frame] = []
+        while self._buf:
+            out.extend(self.feed(b""))
+            if not self._buf:
                 break
-            out.append(frame)
-            del self._buf[:consumed]
+            # Stuck on an incomplete frame that will never complete: step over this
+            # header and resynchronise on the next one.
+            nxt = self._buf.find(b'{"cmdType":', 1)
+            if nxt < 0:
+                self.skipped_bytes += len(self._buf)
+                self._buf.clear()
+                break
+            self.skipped_bytes += nxt
+            del self._buf[:nxt]
         return out
 
     def _try_one(self) -> tuple[Frame | None, int]:
@@ -280,7 +326,9 @@ class FrameStream:
             nxt = self._buf.find(b'{"cmdType":', 1)
             if nxt > 0:
                 del self._buf[:nxt]
-            return None, 0
+                self.skipped_bytes += nxt
+                return None, nxt          # resynchronised; caller should continue
+            return None, 0                # no header anywhere yet -- need more bytes
         header_end = m.end()
         region = bytes(self._buf[header_end:])
         seed = detect_seed(region) if self._cipher else None
@@ -295,9 +343,12 @@ class FrameStream:
             nxt = self._buf.find(b'{"cmdType":', 1)
             if nxt > 0:
                 del self._buf[:nxt]
-            else:
-                self._buf.clear()
-            return None, 0
+                self.skipped_bytes += nxt
+                return None, nxt          # resynchronised; caller should continue
+            dropped = len(self._buf)
+            self._buf.clear()
+            self.skipped_bytes += dropped
+            return None, dropped
         frame = Frame(
             cmd_type=int(m.group(1)), equip_no=m.group(2).decode(),
             data_area=obj.get("dataArea", {}), type=obj.get("type", 0),
@@ -355,4 +406,13 @@ def iter_pcap_frames(path: str, port: int = 9000, cipher: bool = True) -> Iterat
             if pos + len(pl) > len(buf):
                 buf.extend(b"\x00" * (pos + len(pl) - len(buf)))
             buf[pos:pos + len(pl)] = pl
-        yield from FrameStream(cipher=cipher).feed(bytes(buf))
+        # feed() then flush(): the buffer is complete, so an incomplete frame will
+        # never complete and must be stepped over rather than waited on.
+        fs = FrameStream(cipher=cipher)
+        yield from fs.feed(bytes(buf))
+        yield from fs.flush()
+        if fs.skipped_bytes:
+            _log.warning(
+                "pcap %s: skipped %d undecodable byte(s) while resynchronising; "
+                "some frames in this stream were not recovered",
+                path, fs.skipped_bytes)
