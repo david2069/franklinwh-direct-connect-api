@@ -177,10 +177,12 @@ Anything outside the first bucket needs the reference aGate.
 
 **The current scope is the emulator's to state, not ours to copy.** For the FranklinWH
 Gateway Emulator it is the table in its own `CLAUDE.md`, under "Critical changes need real
-verification", in the `franklinwh-gateway-emulator` repository — which is private, so it is
-not linkable from this public file. Ask that repository, or the session working in it,
-rather than trusting a copy here: a copy of it in this file went stale within an hour of
-being written, which is why there is no longer one.
+verification", in the `franklinwh-gateway-emulator` repository. That repo was private when
+this was written and is **public as of 2026-10-31** — so the "not linkable from a public
+file" caveat that used to sit here no longer applies. Ask that repository, or the session
+working in it, rather than trusting a copy here: a copy of it in this file went stale
+within an hour of being written, which is why there is no longer one. That this very
+sentence was itself stale for weeks is the point.
 
 **A report of an emulator run states what that emulator does not model.** On one occasion
 register 15514 raised an exception on the emulator and answered on the aGate; a report that
@@ -327,6 +329,15 @@ this library's queue — `BACKLOG.md` is the queue here, as `in_flight_work.md` 
 people's repos: **a PR says `Refs #N`, never `Fixes`/`Closes`** (which would close an issue
 before anything is verified), and **a defect found in another repo gets an issue there when
 it is found**, not a message that leaves no trail.
+
+**This repo's `sev:` labels match the severity table above** — `sev:S1-blocker`,
+`sev:S2-high`, `sev:S3-medium`, `sev:S4-low`, plus `nature:*` and `chore`. They read
+`critical`/`major`/`minor`/`cosmetic` until 2026-10-31, matching neither that table nor any
+other repo, so a PR author was asked for a severity that existed nowhere. The `area:*` and
+state labels (`untriaged`, `fixed`, `blocked`, `needs-info`, `regression`) belong to the
+bridges' issue policy and are **deliberately not adopted here**: `BACKLOG.md` is this
+library's queue, and the bridges' release areas are not this library's. Revisit only if this
+repo starts running its work through GitHub issues.
 
 ## Keep the changelog current, and releasing
 
