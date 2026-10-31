@@ -104,8 +104,15 @@ def test_swept_cmdtypes_cataloged():
     # SunSpec Modbus toggle documented on 1205
     assert "SunSpec" in catalog.CATALOG[1205].description
     # minimal/unconfirmed cmdTypes are present but honestly flagged
-    for cmd in (1207, 1209, 1821, 1823, 1825):
+    for cmd in (1207, 1209, 1823, 1825):
         assert "UNCONFIRMED" in catalog.CATALOG[cmd].description
+    # 1821 left that set on 2026-10-23: it is the installer app's Debug Mode enable,
+    # written from code and read back on the reference aGate. Its entry must carry the
+    # safety consequence, because turning it on stops the battery.
+    dm = catalog.CATALOG[1821]
+    assert dm.name == "debug_mode"
+    assert "UNCONFIRMED" not in dm.description
+    assert "STOPS NORMAL BATTERY OPERATION" in dm.description
 
 
 def test_response_for_unknown_odd_uses_convention():

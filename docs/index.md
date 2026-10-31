@@ -31,6 +31,14 @@ device↔broker channel that the cloud `sendMqtt` REST relay (see
     behaviour is unobserved**, and anything marked UNCONFIRMED has not been proven on
     any hardware.
 
+!!! danger "TCP 9000 is a reserved port"
+    This library's emulator **refuses to start on TCP 9000** and defaults to **19000**.
+    `9000` belongs to a real aGate and to the **FranklinWH Gateway Emulator** — the
+    official emulator, which is deliberately *transparent*, so something answering on
+    9000 is meant to be indistinguishable from a gateway. This library's mock must stay
+    distinguishable from one: a mock left on 9000 once appeared in a LAN scan as
+    `9000/sendMqtt CONFIRMED`, which makes every discovery result untrustworthy.
+
 !!! tip "No gateway? Run the emulator first"
     A deterministic synthetic aGate with N aPowers — live telemetry, energy history,
     smart circuits, and writes that persist — so you can see the whole thing work before
@@ -121,8 +129,8 @@ with DirectConnectClient("10.100.1.1") as c:   # the hotspot gateway IP
 ```
 
 ```bash
-franklinwh-direct-connect emulate --port 9000             # no hardware: a fake aGate
-franklinwh-direct-connect --host 127.0.0.1 power_flow     # ... talk to it
+franklinwh-direct-connect emulate                         # no hardware: a fake aGate
+franklinwh-direct-connect --host 127.0.0.1 --port 19000 power_flow   # ... talk to it
 
 franklinwh-direct-connect scan gateway                    # live: find the aGate on its hotspot
 franklinwh-direct-connect --host 10.100.1.1 power_flow --watch 5   # live

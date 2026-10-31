@@ -283,12 +283,36 @@ def _cmd_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _emulate_port(value: str) -> int:
+    """Argparse type for ``emulate --port``: rejects the reserved port.
+
+    Defence in depth. ``Emulator.__init__`` refuses 9000 too, but validating at
+    parse time means the CLI can never reach the point of binding a socket -- and a
+    test for this cannot hang waiting on a server that should never have started.
+    """
+    port = int(value)
+    if port == _emulator.Emulator.RESERVED_PORT:
+        raise argparse.ArgumentTypeError(
+            f"TCP {port} is a reserved port and not available for use -- it belongs to a "
+            "real aGate and to the FranklinWH Gateway Emulator (the official, transparent "
+            f"emulator). Use the default {_emulator.Emulator.DEFAULT_PORT}, or another "
+            "free port."
+        )
+    return port
+
+
 def _cmd_emulate(args: argparse.Namespace) -> int:
-    return _emulator.run(
-        args.bind, args.port, args.equip or _emulator.DEFAULT_EQUIP,
-        seed=args.seed, serial=args.serial, dynamic=not args.static,
-        units=args.units, tz_offset_hours=args.tz_offset,
-    )
+    try:
+        return _emulator.run(
+            args.bind, args.port, args.equip or _emulator.DEFAULT_EQUIP,
+            seed=args.seed, serial=args.serial, dynamic=not args.static,
+            units=args.units, tz_offset_hours=args.tz_offset,
+        )
+    except ValueError as e:
+        # The reserved-port refusal, reported as a clean error rather than a
+        # traceback -- a user who typed --port 9000 needs the reason, not a stack.
+        print(f"error: {e}", file=sys.stderr)
+        return 2
 
 
 def _wait_port(host: str, port: int, *, want_up: bool, timeout: float,
@@ -329,6 +353,51 @@ def _confirm(prompt: str, force: bool) -> bool:
         return input(prompt).strip().lower() == "yes"
     except EOFError:
         return False
+
+
+def _cmd_debug_mode(args: argparse.Namespace) -> int:
+    """Show Debug Mode, or turn it on/off — with a read-back and a loud warning.
+
+    Debug Mode is the installer app's Tools -> Debug Mode. Turning it ON stops normal
+    battery operation on the one site where this was measured, so the write prompts
+    unless --force, and the result is always verified by reading 1821 back.
+    """
+    if not args.host:
+        print("error: --host/-i is required for live commands", file=sys.stderr)
+        return 2
+    want = getattr(args, "set", None)
+    with _client(args) as c:
+        c.login()
+        if want is None:
+            data = c.debug_mode()
+            if args.json:
+                print(json.dumps(data, indent=2))
+            else:
+                on = data.get("enable") == 1
+                print(f"Debug Mode: {'ON' if on else 'off'}")
+                if on:
+                    print("  WARNING: normal battery operation is stopped while this is on.")
+            return 0
+
+        on = want == "on"
+        if on and not args.force:
+            print("Debug Mode ON stops normal battery operation (measured: discharge "
+                  "stops, the house moves to the grid, run_status -> 0).")
+            if input("Type 'yes' to continue: ").strip().lower() != "yes":
+                print("aborted")
+                return 1
+        res = c.set_debug_mode(on)
+        if args.json:
+            print(json.dumps(res, indent=2))
+        else:
+            state = "ON" if res.get("enable") == 1 else "off"
+            print(f"Debug Mode: {state}  (verified: {res.get('verified')})")
+            if not res.get("verified"):
+                print("  the gateway acknowledged the write but did not read back — "
+                      "result:0 is not proof on this protocol", file=sys.stderr)
+            elif on:
+                print("  remember to turn it off when you are finished.")
+        return 0 if res.get("verified") else 1
 
 
 def _cmd_der_comms(args: argparse.Namespace) -> int:
@@ -1202,7 +1271,7 @@ def _cmd_live(args: argparse.Namespace) -> int:
 # Subcommands that are NOT plain catalog reads: 'call' is the raw escape hatch,
 # and these names have dedicated get-or-set subparsers built further down.
 _EXTRA_LIVE_COMMANDS = ["call"]
-_DEDICATED = {"mode", "mode_page", "offgrid", "der_comms"}
+_DEDICATED = {"mode", "mode_page", "offgrid", "der_comms", "debug_mode"}
 
 
 def live_commands() -> list[str]:
@@ -1346,6 +1415,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     px = sub.add_parser("proxy", help="transparent decoding relay between the app and a real aGate")
     px.add_argument("target", help="real aGate, host or host:port (default port 9000)")
+    # 0.0.0.0:9000 is intentional and is the documented exception to the reserved-port
+    # rule: the proxy relays to a REAL aGate and never answers on its own behalf, so a
+    # client reaching it is talking to the gateway. See proxy.py, "Listening on TCP 9000".
     px.add_argument("--listen", default="0.0.0.0:9000",
                     help="bind address host:port (default 0.0.0.0:9000)")
     px.add_argument("--once", action="store_true", help="serve a single connection then exit")
@@ -1543,7 +1615,12 @@ def build_parser() -> argparse.ArgumentParser:
     em = sub.add_parser("emulate", help="run a fake aGate broker for testing")
     em.add_argument("--bind", default="127.0.0.1",
                     help="host/IP to bind (default 127.0.0.1; use 0.0.0.0 in containers)")
-    em.add_argument("--port", type=int, default=9000)
+    em.add_argument("--port", type=_emulate_port, default=_emulator.Emulator.DEFAULT_PORT,
+                    help=f"listen port (default {_emulator.Emulator.DEFAULT_PORT}). "
+                         f"TCP {_emulator.Emulator.RESERVED_PORT} is REFUSED: it is "
+                         "reserved for a real aGate and for the official FranklinWH "
+                         "Gateway Emulator, so this mock stays distinguishable from a "
+                         "gateway")
     em.add_argument("--seed", type=int, default=None,
                     help="enable the dynamic per-seed synthetic site (unique serial + "
                          "live-moving power/mode curve); omit for canned/pcap replies")
@@ -1607,6 +1684,15 @@ def build_parser() -> argparse.ArgumentParser:
                     help="skip the confirmation prompts")
     dc.add_argument("--json", action="store_true", help="decoded dataArea as JSON")
     dc.set_defaults(func=_cmd_der_comms)
+
+    dm = sub.add_parser("debug_mode",
+                        help="live: show Debug Mode, or --set it on/off (1821)")
+    dm.add_argument("--set", choices=["on", "off"],
+                    help="turn Debug Mode on or off. ON STOPS NORMAL BATTERY OPERATION; "
+                         "the write is verified by reading 1821 back")
+    dm.add_argument("--force", action="store_true", help="skip the confirmation prompt")
+    dm.add_argument("--json", action="store_true", help="emit the result as JSON")
+    dm.set_defaults(func=_cmd_debug_mode)
 
     hc = sub.add_parser("health",
                         help="live: check aGate listeners (:9000/:502), login, Modbus config")

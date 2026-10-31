@@ -39,9 +39,22 @@ history, smart circuits and writes that persist, so you can see the thing work b
 connect real hardware:
 
 ```bash
-franklinwh-direct-connect emulate --port 9000            # a fake aGate
-franklinwh-direct-connect --host 127.0.0.1 power_flow    # ... talk to it
+franklinwh-direct-connect emulate                       # a fake aGate (port 19000)
+franklinwh-direct-connect --host 127.0.0.1 --port 19000 power_flow  # ... talk to it
 ```
+
+> **TCP 9000 is a reserved port and not available to this emulator.** It **refuses to start
+> on 9000** and defaults to **19000**. `9000` belongs to a real aGate and to the
+> [FranklinWH Gateway Emulator](https://github.com/david2069/franklinwh-gateway-emulator) —
+> the official emulator, which is deliberately *transparent*, so something answering on
+> 9000 is meant to be indistinguishable from a gateway. This library's mock must stay
+> distinguishable from one: a mock left on 9000 once showed up in a LAN scan as
+> `9000/sendMqtt CONFIRMED`, which makes every discovery result untrustworthy.
+>
+> **`proxy` is the exception** and still listens on `0.0.0.0:9000`: it relays every byte
+> to a *real* aGate and never answers on its own behalf, so a client reaching it is
+> talking to the gateway. Sitting on `:9000` between the app and the device is the point
+> of that tool.
 
 The emulator is a development aid. It serves what it was told to serve, so it is **not**
 evidence of how real hardware behaves.
@@ -300,7 +313,7 @@ Detects open **TCP 9000** (sendMqtt) and **TCP 502** (Modbus), and by default
 ### Test without hardware (emulator)
 
 ```bash
-franklinwh-direct-connect emulate --port 9000   # fake aGate replaying captured data
+franklinwh-direct-connect emulate               # fake aGate replaying captured data
 # then, in another shell:
 franklinwh-direct-connect --host 127.0.0.1 power_flow
 ```

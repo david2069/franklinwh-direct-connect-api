@@ -297,3 +297,64 @@ def test_ibg_run_status_carries_the_grid_measurements():
     assert 2300 <= r["gridLineVol"] <= 2500                        # ~230–250 V service
     assert 59 <= r["gridFreq"] <= 61                               # hertz, not hundredths
     assert r["dspSettingFreq"] == 60                               # configured nominal
+
+
+# -- the reserved-port rule --------------------------------------------------
+def test_emulator_refuses_the_reserved_port():
+    """TCP 9000 is a reserved port and not available to this emulator.
+
+    Owner's rule, 2026-10-31: 9000 belongs to a real aGate and to the FranklinWH
+    Gateway Emulator, which is the official and deliberately TRANSPARENT emulator.
+    This library's mock must stay distinguishable from a gateway. A mock left on
+    9000 was found by `scan 127.0.0.1` and reported `9000/sendMqtt CONFIRMED
+    (IBG_SN=MOCK...)`, which makes every discovery result untrustworthy.
+
+    A hard refusal, not a warning: a warning is missed, and the damage (a capture
+    or a bug report naming a mock as a gateway) is unrecoverable afterwards.
+    """
+    from franklinwh_direct_connect_api.emulator import Emulator
+
+    with pytest.raises(ValueError, match="reserved port"):
+        Emulator("127.0.0.1", 9000)
+
+
+def test_emulator_default_port_is_not_the_reserved_one():
+    from franklinwh_direct_connect_api.emulator import Emulator
+
+    assert Emulator.RESERVED_PORT == 9000
+    assert Emulator.DEFAULT_PORT != Emulator.RESERVED_PORT
+    assert Emulator().port == Emulator.DEFAULT_PORT     # constructed, not started
+
+
+def test_ephemeral_and_other_ports_still_work():
+    """Only 9000 is refused. Port 0 (ephemeral) is what the whole suite uses."""
+    from franklinwh_direct_connect_api.emulator import Emulator
+
+    for port in (0, 9001, 19000, 65000):
+        assert Emulator("127.0.0.1", port).port == port
+
+
+def test_the_cli_rejects_the_reserved_port_at_parse_time(capsys):
+    """A user who typed --port 9000 needs the reason, and no socket must be bound.
+
+    Deliberately asserted at PARSE time rather than by calling through to the
+    server. An earlier version of this test invoked the emulate command directly:
+    with the refusal removed it did not fail, it HUNG -- the command started a real
+    listener on 9000 and blocked the whole suite. A regression must fail fast, not
+    hang, and it must never reach the point of binding the reserved port.
+    """
+    from franklinwh_direct_connect_api import cli
+
+    with pytest.raises(SystemExit) as exc:
+        cli.build_parser().parse_args(["emulate", "--port", "9000"])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "reserved port" in err and "9000" in err
+    assert "Traceback" not in err
+
+
+def test_the_cli_still_accepts_other_ports():
+    from franklinwh_direct_connect_api import cli
+
+    args = cli.build_parser().parse_args(["emulate", "--port", "19001"])
+    assert args.port == 19001

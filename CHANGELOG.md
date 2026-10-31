@@ -39,7 +39,66 @@ uses [Semantic Versioning](https://semver.org/).
   `result`/`reason` and exits non-zero, and says that some gateways do not serve `1407`
   at all.
 
+### Changed
+
+- **The emulator no longer listens on TCP 9000, and refuses to.** It now defaults to
+  **19000**, and both `Emulator(port=9000)` and `emulate --port 9000` fail with
+  "TCP 9000 is a reserved port and not available for use". That port belongs to a real
+  aGate and to the **FranklinWH Gateway Emulator** — the official emulator, which is
+  deliberately *transparent*, so something answering on 9000 is meant to be
+  indistinguishable from a gateway. This library's mock must stay distinguishable from one.
+
+  **Why a hard error rather than a warning:** a mock left running on 9000 was found by
+  `scan 127.0.0.1` and reported as `9000/sendMqtt CONFIRMED (IBG_SN=MOCK…)`. A discovery
+  result, capture or bug report that names a mock as a real gateway cannot be corrected
+  after the fact.
+
+  **`proxy` is unaffected and still listens on `0.0.0.0:9000`.** The rule is about what
+  is behind the socket, not the number: the proxy relays every byte to a real aGate and
+  never answers on its own behalf, so sitting on `:9000` between the app and the device is
+  what the tool is for.
+
+  **If you scripted `emulate --port 9000`, it will now fail** — drop the flag to get
+  19000, or pick any other free port. The documentation told you to use 9000 in five
+  places; all of them are corrected.
+
 ### Added
+
+- **Debug Mode is no longer an unknown command.** `1821` is the installer app's
+  **Tools → Debug Mode**, confirmed by write and read-back on one site (aGate X-01-AU,
+  IBG V12R02B60D00, 2026-10-23) — **the Direct Connect Bridge session's measurement**
+  with the owner present, recorded on that repository's issue #311, and **not verified
+  independently by this library**. New `client.debug_mode()` and
+  `client.set_debug_mode(on)` — the write **verifies by reading `1821` back** and reports
+  `verified: False` rather than raising when the gateway acknowledges a write it did not
+  apply, because `result: 0` is not proof on this protocol. New CLI command
+  `debug_mode [--set on|off]`, which confirms before turning it on.
+
+  **Turning Debug Mode on stops normal battery operation** — measured on that site:
+  discharge stopped, the house moved to the grid, `run_status` went 2 → 0. The catalogue
+  entry, the write note, the CLI and the docs all say so.
+
+### Changed
+
+- **`run_status` 8 ("Debug Mode") now carries the conflict that contradicts it.** The
+  label comes from the cloud's vocabulary; the one local measurement of Debug Mode read
+  `run_status` **0**, not 8, while Debug Mode was definitively on. Anything detecting
+  Debug Mode from `run_status == 8` would have missed that state — read `1821` `enable`
+  instead. `8` is kept in the map, because one site on one firmware is not grounds to
+  call the cloud vocabulary wrong and nothing has yet shown what does produce an 8.
+
+
+- **`1701`'s grid power-plane limits: what is known, by condition.** A `kwRatePower` /
+  `gridSoftLimit` write **stored and read back** with Debug Mode on (V12R02B60D00), where
+  the same write with it off on earlier firmware was acknowledged and discarded. Debug
+  Mode versus firmware is **not separated**, **enforcement is untested**, and a third
+  field (`gridImportLimit`) exists — so which one the aGate honours cannot be inferred.
+  Full table in `docs/PROTOCOL.md`.
+
+- **`1823` and `1825` stay UNCONFIRMED**, now with the reason they are suspected: the
+  guide's Debug Mode screen has an aPower on/off switch and a charge/discharge kW value,
+  which matches their shapes. A lead from a menu layout, not a reading — and `1823`
+  remains **do not write**.
 
 - **The `1102` login manifest's field shapes are now measured, not assumed.** Read from the
   reference aGate on 2026-10-31 (`IBG_VER V12R02B60D00_260924`, `protocolVer V1.12.02`,

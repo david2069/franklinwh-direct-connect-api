@@ -39,7 +39,7 @@ def test_catalog_reads_carry_their_cmdtype():
     """Auto-wired reads dispatch via `catalog_cmd`; it must be populated."""
     parser = build_parser()
     for info in catalog.CATALOG.values():
-        if info.name in {"mode", "mode_page", "offgrid", "der_comms"}:
+        if info.name in {"mode", "mode_page", "offgrid", "der_comms", "debug_mode"}:
             continue  # dedicated get-or-set parsers
         args = parser.parse_args([info.name])
         assert getattr(args, "catalog_cmd", None) == info.request, info.name
@@ -181,7 +181,7 @@ def test_every_unmapped_code_is_genuinely_local_only():
         "login", "device_scan", "device_check", "agate_serial", "time_location",
         "smart_circuit_schedule", "firmware_deliver", "firmware_upgrade",
         "install_profile", "battery_inhibit", "ibg_state", "event_block",
-        "unknown_1207", "unknown_1209", "unknown_1821", "unknown_1823", "unknown_1825",
+        "unknown_1207", "unknown_1209", "debug_mode", "unknown_1823", "unknown_1825",
     }
     assert unmapped == expected
 

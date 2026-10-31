@@ -223,6 +223,79 @@ For **display**, `franklinwh_direct_connect_api.mode_label(entry)` returns the c
 
 Add new rows to `franklinwh_direct_connect_api/catalog.py` as more codes are observed.
 
+### Debug Mode (1821), and the grid power-plane limits (1701)
+
+**Debug Mode is `1821`.** It is the installer app's **Tools → Debug Mode**
+(*Commissioning Guide AU & NZ, App v2.23.0, 2026-09-30, p.48*). `{"enable": 1}` is on,
+`0` is off, and `opt: 1` writes it. Confirmed by write and read-back on **one** site
+(aGate X-01-AU, IBG V12R02B60D00, 2026-10-23); it was `unknown_1821` until then.
+
+!!! info "Whose measurement this is"
+
+    The 2026-10-23 readings below are the **Direct Connect Bridge session's**, taken with
+    the owner present and recorded on that repository's issue #311. This library did
+    **not** verify them independently — it holds no capture of them and has run no 1821
+    write of its own. The owner lifted a standing "never write 1821–1825" rule for
+    **1821 only** for that test, as the same issue records; `1823` and `1825` remain
+    never-write, and nothing here authorises writing them.
+
+!!! danger "Turning Debug Mode on stops normal battery operation"
+
+    Measured on that site at 22:57 AEDT: self-consumption discharge stopped (battery
+    234 W → about −42 W), the house moved to the grid (about 245 W) and `1301`
+    `run_status` went 2 → 0. Normal discharge resumed when it was turned off. Use
+    `set_debug_mode()`, which verifies by reading `1821` back, and turn it off when you
+    are finished.
+
+!!! warning "`run_status` did not report Debug Mode — do not detect it that way"
+
+    The table below labels `run_status` **8** "Debug Mode", which is the **cloud's**
+    vocabulary, copied. The one local measurement contradicts it: with Debug Mode
+    definitively on — `1821` `enable` read back `1`, and the owner confirmed the
+    FranklinWH app showed Debug Mode — `run_status` read **0** ("Standby"), **not 8**.
+
+    So anything deciding "is Debug Mode on" from `run_status == 8` would have missed this
+    state entirely. Read `1821` `enable` instead (`client.debug_mode()`).
+
+    **8 is not removed from the table.** One site on one firmware is not enough to call
+    the cloud vocabulary wrong, and no reading has yet shown what *does* produce an 8.
+    Both halves are recorded rather than quietly picking one.
+
+#### Grid power-plane limits (1701)
+
+`1701` carries `kwRatePower`, `gridSoftLimit`, `gridHardLimit` and `gridImportLimit`
+(−1 = unlimited). Whether a write to them is **stored** depends on something that has not
+yet been pinned down:
+
+| condition | result | when |
+| :--- | :--- | :--- |
+| Debug Mode **on**, V12R02B60D00 | `opt:1` full block, `kwRatePower`/`gridSoftLimit` = 2000 → `result: 0`, **read back 2000/2000**; −1/−1 restored the same way | 2026-10-23 23:15 AEDT |
+| Debug Mode **off**, earlier firmware | acknowledged, **not stored** (read back −1) | 2026-09-28 |
+| Debug Mode **off**, V12R02B60D00 | **not tested** | — |
+
+Three things follow, and they travel together or not at all:
+
+1. **Debug Mode versus firmware is not separated.** Both changed between the two tests.
+   Saying "Debug Mode makes 1701 writable" is one reading of two data points.
+2. **Enforcement is untested.** Nobody has shown that a stored cap actually clamps a grid
+   charge. Stored ≠ obeyed.
+3. **Which field is enforced is unknown.** A raw read while `kwRatePower` and
+   `gridSoftLimit` were stored at 2000 showed `gridImportLimit` still −1
+   (2026-10-24 01:23 NZDT) — so the import limit is a *third* field, and which one the
+   aGate honours cannot be inferred from the names.
+
+One site, throughout. Reserve-SoC writes (`1726`, `1405`, `1727`) still do **not** apply,
+with Debug Mode on or off.
+
+#### What 1823 and 1825 might be
+
+The guide's Debug Mode screen also offers an **aPower on/off** switch and a
+**charge/discharge** control with a "Current power (kW)" value. `1823` returns
+`{powerOn, powerOff}` and `1825` returns `{power}`, so the shapes line up — but that is a
+**lead from a screenshot of a menu**, not a reading. Nobody has watched either value change
+while the app was used. `1823` is additionally marked **do not write**: if it is the
+software aPower switch, a successful write may shut the battery down.
+
 ### `power_flow` (1301): `run_status` vs `mode` — don't confuse them
 
 The `1302` reply carries two easily-confused fields:
@@ -240,7 +313,7 @@ so the two channels agree. Available as `franklinwh_direct_connect_api.run_statu
 | 5 | Off-Grid Standby |
 | 6 | Off-Grid Charging |
 | 7 | Off-Grid Discharging |
-| 8 | Debug Mode (Franklin remote-support session) |
+| 8 | Debug Mode (Franklin remote-support session) — **but see the warning above: a measured Debug Mode read 0, not 8** |
 | 9 | VPP mode — **defined in the enum, but not emitted by local `1301`; see below** |
 
 !!! warning "Do not detect VPP from `run_status`"
