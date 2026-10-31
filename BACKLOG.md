@@ -5,6 +5,194 @@ Status: `queued` → `planned` → `in-progress` → `done`.
 
 ---
 
+## DEF-RUN-STATUS-8-UNCONFIRMED — `run_status` 8 "Debug Mode" is the cloud's label, and a measurement contradicts it
+
+**Severity:** S2 (wrong detection path in public docs) · **Status:** DONE (2026-10-31, on `feat/debug-mode-1821`) · **Filed:** 2026-10-31 · **Area:** catalog / docs
+
+`RUN_STATUS[8] = "Debug Mode"` was copied from the cloud vocabulary
+(`franklinwh_cloud.const.RUN_STATUS`), which this repo's own comment says the local broker
+matches "byte-for-byte". It was never measured locally, and the one local measurement
+disagrees.
+
+With Debug Mode **definitively on** — `1821` `enable` read back `1`, and the owner confirmed
+the FranklinWH app showed Debug Mode — `1301` `run_status` read **0** ("Standby"), not 8
+(Direct Connect Bridge session's reading, owner present, aGate X-01-AU, IBG V12R02B60D00,
+2026-10-23 22:57 AEDT, bridge issue #311; turning it off returned `run_status` to 2).
+
+**Consequence:** anything deciding "is Debug Mode on" from `run_status == 8` would have
+missed a live Debug Mode. The bridge's own top-bar badge hit exactly this and now reads
+`1821.enable` instead.
+
+**Fixed** by recording the conflict beside the map in `catalog.py` and in
+`docs/PROTOCOL.md`, not by picking a side. **8 is deliberately NOT removed:** one site on
+one firmware is not grounds to call the cloud vocabulary wrong, and no reading has yet
+shown what *does* produce an 8. Two tests: one pins both halves in place, one fails if any
+code path in the package ever decides Debug Mode from `run_status == 8` — verified by
+adding such a path and watching it fail.
+
+**Still unknown, and worth a reading if anyone is ever in a position to take one:** what
+state actually reports `run_status` 8, and whether the cloud reports 8 for the same moment
+the local channel reports 0 (which would make it a translation layer, not a device state).
+
+---
+
+## DEF-1821-POLICY-CONFLICT — a policy claiming this repo forbids the 1821 write PR #22 ships
+
+**Severity:** S2 (hardware-write governance, PR #22 blocked) · **Status:** QUEUED — needs the owner · **Filed:** 2026-10-31 · **Area:** policy / writes
+
+`franklinwh-gateway-emulator/.agents/policies/hardware_test_protocol.md` defines its own
+scope as "every read or write an agent makes against the owner's aGate (Modbus TCP,
+**Direct Connect**, or the bridges in front of them)" — so by its own words it covers this
+repo. Its **Rule 2 (never write)** names `1821` / `1823` / `1825` as
+"maintenance commands that can leave a live site in a state the owner cannot clear from
+the app."
+
+Verified in that repo's git history 2026-10-31, not taken on report:
+
+| | |
+|---|---|
+| Rule 2 first appeared | 2026-10-13 (commit `32a7af7`) |
+| The 1821 write PR #22 documents | 2026-10-23 |
+
+The rule predates the write by ten days, and PR #22 ships `client.set_debug_mode()`,
+whose purpose is to write 1821.
+
+**What is NOT established.** Whether the owner authorised that specific write, or who
+performed it — neither is determinable from this repo. The recorded evidence does include
+a restore with a read-back, which is consistent with a deliberate, planned test.
+
+**What is also true.** This repo's `CLAUDE.md` has never named
+`hardware_test_protocol.md` as a source. It cites the `franklinwh-modbus`
+change-management and release policies, and references the gateway-emulator repo only for
+the emulator's coverage-scope table. So this is a policy asserting scope over this repo
+without having been adopted in it, and [[DEF-POLICY-SET-DIVERGENCE]] shows the wider
+policy set has already drifted.
+
+Raised to this session by the Direct Connect bridge session, which reports holding a
+conflicting instruction from the owner (1821 permitted; only 1823/1825 forbidden). Rule 2's
+text and dates were checked directly; the bridge's account of its own instruction is its
+claim, unverified here. Two conflicting instructions is the reason this needs the owner.
+
+**Partly resolved 2026-10-31** by reading bridge issue #311 directly. Its step 3, written
+before the test, reads: "Only if 1821 alone tracks Debug Mode: **the owner lifts the 'never
+write 1821–1825' rule for 1821 only.** Write `enable` 1, read it back, check `run_status` 8,
+then write `enable` 0. 1823 is never written." So the write was **authorised** — a narrow,
+recorded lift of exactly that rule, with the owner present — not a bypass. The same issue
+asked for this library to gain `set_debug_mode()` rather than the bridge writing raw calls,
+so PR #22 is the requested outcome.
+
+**Still blocked on the owner:** does `hardware_test_protocol.md` bind this repo **from now
+on**? Rule 2 (2026-10-13) forbids writing 1821/1823/1825; the bridge session reports an
+instruction from the owner permitting 1821 and forbidding only 1823/1825 — its claim,
+unverified here. The past write is settled; the standing rule is not, and PR #22 ships a
+function that performs that write. Recorded on PR #22 so it cannot merge unseen.
+
+---
+
+## DEF-1821-EVIDENCE-UNATTRIBUTED — PR #22 states another session's measurement as ours
+
+**Severity:** S2 (evidence standard, public docs) · **Status:** DONE (2026-10-31, on `feat/debug-mode-1821`) · **Filed:** 2026-10-31 · **Area:** docs / evidence
+
+The `1821` catalogue entry, `docs/PROTOCOL.md` and the CHANGELOG on `feat/debug-mode-1821`
+all read "CONFIRMED by write and read-back on one site (aGate X-01-AU, IBG V12R02B60D00,
+2026-10-23)" with **no attribution**. That measurement was not performed in the session
+that wrote those words, so as published a reader takes it to be this library's own finding.
+
+`CLAUDE.md` is explicit: "When you pass a claim on, label it: who said it, where, when,
+and whether you verified it. Do not restate it as your own finding."
+
+**Resolved** by reading bridge issue #311 directly rather than relying on the bridge
+session's account of it. The reading is the **Direct Connect Bridge session's**, taken with
+the owner present, 2026-10-23 22:57 AEDT, with the before/after table and the 23:25 AEDT
+restore recorded there. The catalogue entry, `docs/PROTOCOL.md` and the CHANGELOG now each
+name whose measurement it is and state that this library did not verify it independently.
+
+#311 also records the authorisation, which settles the first question of
+[[DEF-1821-POLICY-CONFLICT]]: its step 3, written before the test, reads "the owner lifts
+the 'never write 1821–1825' rule for **1821 only**." The rule was lifted by the owner for
+that command alone, with him present — not bypassed. `1823`/`1825` remain never-write.
+
+And it exposed [[DEF-RUN-STATUS-8-UNCONFIRMED]].
+
+---
+
+## DEF-POLICY-SET-DIVERGENCE — the shared agent policies have forked, and this repo carries none
+
+**Severity:** S3 (process) · **Status:** QUEUED — needs the owner · **Filed:** 2026-10-31 · **Area:** policy
+
+This is the only `franklinwh` repo on the owner's machine with **no `.agents/policies/`
+directory**; its rules are prose inside `CLAUDE.md` that calls itself "the Direct Connect
+reading" of policies in other repos. Surveyed 2026-10-31:
+
+- **Change management exists as two different texts.** The `AP-1` version is byte-identical
+  in `franklinwh-cloud` and `franklinwh-gateway-emulator`. `franklinwh-modbus`'s version —
+  the one `CLAUDE.md` names as the source, effective 2026-03-18 — differs from both and
+  carries no `AP` number.
+- `pii_policy.md` (`AP-3`) and `evidence_standard.md` (`AP-14`) differ between
+  `franklinwh-cloud` and `franklinwh-gateway-emulator` despite identical names and numbers.
+- The issue policy (`franklinwh-modbus-bridge docs/issue-policy.md`, accepted 2026-10-16)
+  scopes itself to "both bridges" and names them, so it does not bind this library repo.
+  Library repos queue in a file instead — `franklinwh-modbus` uses `in_flight_work.md`,
+  this repo uses `BACKLOG.md`. Nothing anywhere covers cross-repo handoffs; the bridge
+  session confirms its own #252/#253/#405 handoffs were ad hoc.
+
+**Two concrete non-compliances in this repo's own commits**, against
+`franklinwh-modbus/.agents/policies/release_policy.md`: defect-fix commit subjects must
+carry the ID (`fix(DEF-…): …`) and must state `Tests: N passed`. The 2026-10-31 commits do
+neither, keeping the IDs in the body and the count in prose. Note the source repo itself
+does this in 0 of its last 40 commits and `franklinwh-cloud` in 5 of 40, so the rule is
+unevenly applied at its origin.
+
+**Needs the owner to decide**, since none of it may be changed on a peer's say-so: whether
+this repo gains a real `.agents/policies/` (copies, or pointers to one source), which text
+is canonical where they have forked, whether the commit-ID and `Tests: N` formats are
+adopted, and whether `hardware_test_protocol.md` binds this repo
+([[DEF-1821-POLICY-CONFLICT]]). **Nothing changed pending that.**
+
+---
+
+## DEF-VERSION-DRIFT — `__version__` said 0.4.0 while the distribution was 0.5.0
+
+**Severity:** S2 (wrong value reported, no workaround in-process) · **Status:** DONE (2026-10-31) · **Filed:** 2026-10-31 · **Area:** packaging
+
+`__init__.py` hardcoded `__version__ = "0.4.0"` while `pyproject.toml` declared `0.5.0`,
+which is what is on PyPI. Anything reading the version from the import package — a bridge
+logging its library version, a bug report, `health` output — reported a release behind.
+Both were maintained by hand, so it drifted at every release, and the only version
+assertion in the suite (`test_deprecated_alias.py`) just checked the alias package agreed
+with the canonical one, so it could not catch it.
+
+This environment showed the same drift from the other direction: the venv held three
+stale `.dist-info` entries for this project (`franklinwh-direct-connect-api` 0.4.0,
+plus the pre-rename `franklinwh-local-api` 0.3.0 and `franklinwh-local` 0.1.0), because
+the editable install was never refreshed after the version bumps.
+
+**Fixed:** `pyproject.toml` is the single source; the package reads it back with
+`importlib.metadata.version()`, falling back to `0.0.0+unknown` only for a source tree
+that was never installed. `tests/test_version.py` asserts the reported version equals the
+declared one, comes from distribution metadata rather than a literal, and is not the
+fallback — verified to fail with the literal restored.
+
+**Left alone:** the two pre-rename distributions still installed in this venv are a local
+environment wart, not repo state. `pip uninstall franklinwh-local-api franklinwh-local`
+clears them if they ever shadow anything.
+
+---
+
+## DEF-PYPROJECT-STALE-COMMENT — the packaging comment described the pre-0.4.0 names
+
+**Severity:** S4 (comment only) · **Status:** DONE (2026-10-31) · **Filed:** 2026-10-31 · **Area:** packaging
+
+`pyproject.toml` read "the import package stays `franklinwh_local` and the CLI command
+stays `franklinwh-local`". Both were renamed in 0.4.0 (commit e2c47cc, 2026-10-08): the
+import package is `franklinwh_direct_connect_api` and the CLI is
+`franklinwh-direct-connect`. The old spellings survive only as aliases — the
+`franklinwh_local` shim and the `LocalClient` class name — not as the real names, and the
+comment sat directly above the distribution name where someone would look for exactly
+this. **Fixed:** reworded to describe the aliases that do remain.
+
+---
+
 ## DEF-CLI-HELP-SUPPRESS — `--help` prints `==SUPPRESS==` for every per-cmdType subcommand
 
 **Severity:** S3 (cosmetic) · **Status:** QUEUED · **Filed:** 2026-10-15 · **Area:** CLI

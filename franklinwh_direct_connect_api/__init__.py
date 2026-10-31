@@ -27,6 +27,8 @@ Talk to a gateway (live)::
         print(c.power_flow())
 """
 
+from importlib import metadata as _metadata
+
 from .catalog import (
     CATALOG,
     OPERATING_MODES,
@@ -55,7 +57,15 @@ from .discover import HostResult, expand_targets, scan
 from .emulator import Emulator
 from .proxy import log_frame, serve as proxy_serve
 
-__version__ = "0.4.0"
+# Single source of truth is pyproject.toml, read back through the installed
+# distribution metadata. A hand-maintained literal here drifted to 0.4.0 while the
+# published distribution was 0.5.0 (DEF-VERSION-DRIFT), so anything reporting the
+# library version was a release behind. The fallback covers a source tree that was
+# never installed (no .dist-info), where the metadata genuinely is not available.
+try:
+    __version__ = _metadata.version("franklinwh-direct-connect-api")
+except _metadata.PackageNotFoundError:   # pragma: no cover - uninstalled source tree
+    __version__ = "0.0.0+unknown"
 
 #: ``LocalClient``/``LocalTransport`` predate the rename to "Direct Connect"
 #: (FranklinWH's own term for this protocol) and remain as aliases of the
