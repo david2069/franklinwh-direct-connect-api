@@ -8,6 +8,26 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The pcap decoder silently discarded most of a real capture.** `iter_pcap_frames`
+  decoded **12 frames out of 335** from a 1508-packet site capture and reported no error.
+  Anything concluded from decoding a real capture with this library may be wrong —
+  including "that cmdType never appears".
+
+  `FrameStream._try_one` returned `(None, 0)` for both "need more bytes" and "skipped
+  unparseable bytes", and `feed` stopped on either. So one damaged or gapped frame
+  silently threw away the rest of the stream. Those cases are now distinguished, and
+  `feed` resynchronises to the next frame header and continues.
+
+  A capture also needs a second thing a socket does not: `feed` must *wait* on an
+  incomplete frame, because on a live socket the rest is still in flight — but in a file
+  it will never arrive. New `FrameStream.flush()` says "no more bytes are coming" and
+  steps over the stuck frame; `iter_pcap_frames` now calls it.
+
+  **Loss is no longer silent:** `FrameStream.skipped_bytes` counts every discarded byte,
+  and `iter_pcap_frames` logs a warning naming the file and the byte count.
+
+### Fixed
+
 - **`probe` now finds the aPower serials instead of silently dropping them.** Serial
   discovery accepted only string values, while `FHP_SN` is a **list** of aPower serials
   (one per unit) — so every aPower serial was skipped with no error, leaving only the
