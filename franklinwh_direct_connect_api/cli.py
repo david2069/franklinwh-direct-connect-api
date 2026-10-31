@@ -331,6 +331,51 @@ def _confirm(prompt: str, force: bool) -> bool:
         return False
 
 
+def _cmd_debug_mode(args: argparse.Namespace) -> int:
+    """Show Debug Mode, or turn it on/off — with a read-back and a loud warning.
+
+    Debug Mode is the installer app's Tools -> Debug Mode. Turning it ON stops normal
+    battery operation on the one site where this was measured, so the write prompts
+    unless --force, and the result is always verified by reading 1821 back.
+    """
+    if not args.host:
+        print("error: --host/-i is required for live commands", file=sys.stderr)
+        return 2
+    want = getattr(args, "set", None)
+    with _client(args) as c:
+        c.login()
+        if want is None:
+            data = c.debug_mode()
+            if args.json:
+                print(json.dumps(data, indent=2))
+            else:
+                on = data.get("enable") == 1
+                print(f"Debug Mode: {'ON' if on else 'off'}")
+                if on:
+                    print("  WARNING: normal battery operation is stopped while this is on.")
+            return 0
+
+        on = want == "on"
+        if on and not args.force:
+            print("Debug Mode ON stops normal battery operation (measured: discharge "
+                  "stops, the house moves to the grid, run_status -> 0).")
+            if input("Type 'yes' to continue: ").strip().lower() != "yes":
+                print("aborted")
+                return 1
+        res = c.set_debug_mode(on)
+        if args.json:
+            print(json.dumps(res, indent=2))
+        else:
+            state = "ON" if res.get("enable") == 1 else "off"
+            print(f"Debug Mode: {state}  (verified: {res.get('verified')})")
+            if not res.get("verified"):
+                print("  the gateway acknowledged the write but did not read back — "
+                      "result:0 is not proof on this protocol", file=sys.stderr)
+            elif on:
+                print("  remember to turn it off when you are finished.")
+        return 0 if res.get("verified") else 1
+
+
 def _cmd_der_comms(args: argparse.Namespace) -> int:
     """Show DER comms config, or write it (SunSpec Modbus / IEEE 2030.5).
 
@@ -1182,7 +1227,7 @@ def _cmd_live(args: argparse.Namespace) -> int:
 # Subcommands that are NOT plain catalog reads: 'call' is the raw escape hatch,
 # and these names have dedicated get-or-set subparsers built further down.
 _EXTRA_LIVE_COMMANDS = ["call"]
-_DEDICATED = {"mode", "mode_page", "offgrid", "der_comms"}
+_DEDICATED = {"mode", "mode_page", "offgrid", "der_comms", "debug_mode"}
 
 
 def live_commands() -> list[str]:
@@ -1582,6 +1627,15 @@ def build_parser() -> argparse.ArgumentParser:
                     help="skip the confirmation prompts")
     dc.add_argument("--json", action="store_true", help="decoded dataArea as JSON")
     dc.set_defaults(func=_cmd_der_comms)
+
+    dm = sub.add_parser("debug_mode",
+                        help="live: show Debug Mode, or --set it on/off (1821)")
+    dm.add_argument("--set", choices=["on", "off"],
+                    help="turn Debug Mode on or off. ON STOPS NORMAL BATTERY OPERATION; "
+                         "the write is verified by reading 1821 back")
+    dm.add_argument("--force", action="store_true", help="skip the confirmation prompt")
+    dm.add_argument("--json", action="store_true", help="emit the result as JSON")
+    dm.set_defaults(func=_cmd_debug_mode)
 
     hc = sub.add_parser("health",
                         help="live: check aGate listeners (:9000/:502), login, Modbus config")
