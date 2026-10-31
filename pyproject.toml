@@ -52,12 +52,13 @@ Issues = "https://github.com/david2069/franklinwh-direct-connect-api/issues"
 
 [project.scripts]
 # Canonical since 0.4.0. `franklinwh-local` stays as a deprecated alias of the
-# same entry point and is scheduled for removal in 0.5.0.
+# same entry point and is scheduled for removal in 0.6.0 (was dated 0.5.0, which shipped
+# with the aliases still present).
 franklinwh-direct-connect = "franklinwh_direct_connect_api.cli:main"
 franklinwh-local = "franklinwh_direct_connect_api.cli:main"
 
 [tool.setuptools.packages.find]
-# franklinwh_local is the deprecated import alias (shim only); it ships until 0.5.0.
+# franklinwh_local is the deprecated import alias (shim only); it ships until 0.6.0.
 include = ["franklinwh_direct_connect_api*", "franklinwh_local*"]
 
 [tool.setuptools.package-data]

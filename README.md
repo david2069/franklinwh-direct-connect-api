@@ -20,9 +20,9 @@ pre-0.4.0 spellings still work, because removing them would break existing code:
 `franklinwh_local` returns the *same* module objects (so `isinstance` and subclassing hold
 across both spellings), the `franklinwh-local` command is the same entry point, and
 `LocalClient`/`LocalTransport` remain aliases of `DirectConnectClient`/
-`DirectConnectTransport`. The alias package warns on import and its docstring says
-"scheduled for removal in 0.5.0" — **it is still present in 0.5.0**; that removal has not
-happened and the note is out of date rather than a plan you should rely on either way.
+`DirectConnectTransport`. Importing the old package emits a `DeprecationWarning`, and the
+aliases are **scheduled for removal in 0.6.0** — the date was previously 0.5.0, which
+shipped with them still in place.
 
 **It is not intended for production use, and there is no guarantee it is compatible with
 your FranklinWH gateway(s), aPower(s) or connectivity — now or in the future.** FranklinWH
@@ -176,7 +176,7 @@ Connect** is FranklinWH's own term for this protocol.
 ### Migrating from 0.3.x and earlier
 
 The import package was `franklinwh_local` and the CLI was `franklinwh-local`. Both still
-work in 0.4.x and emit a `DeprecationWarning`; **they are removed in 0.5.0**.
+work and emit a `DeprecationWarning`; **they are scheduled for removal in 0.6.0**.
 
 ```python
 from franklinwh_local import LocalClient                         # 0.3.x — deprecated
@@ -203,7 +203,7 @@ Everything below assumes the venv is activated. Offline commands
 | `can't open file '.../franklinwh-direct-connect'` | You ran `python franklinwh-direct-connect`. Drop the `python` — it's a command, not a script. |
 | `command not found: franklinwh-direct-connect` | The venv isn't activated (`source .venv/bin/activate`), or `pip install -e .` hasn't been run in it. |
 | `No module named franklinwh_direct_connect_api` | You're on a different interpreter than the one you installed into. Check with `which python` and `pip -V` — both should point inside `.venv`. |
-| `DeprecationWarning: 'franklinwh_local' was renamed` | Expected on 0.4.x if you import the old name. See [Migrating](#migrating-from-03x-and-earlier); it stops working at 0.5.0. |
+| `DeprecationWarning: 'franklinwh_local' was renamed` | Expected whenever you import the old name (it still works). See [Migrating](#migrating-from-03x-and-earlier); it stops working at 0.5.0. |
 | `error: externally-managed-environment` | You ran `pip install` outside a venv on a Homebrew/system Python. Create and activate the venv first. |
 
 ## Quick start
@@ -481,7 +481,7 @@ franklinwh_direct_connect_api/
   bms.py         per-cell battery rendering for the `battery` command
   probe.py       read-only cmdType sweep with a payload matrix
   proxy.py       transparent decoding relay
-franklinwh_local/  deprecated import shim (removed in 0.5.0)
+franklinwh_local/  deprecated import shim (to be removed in 0.6.0)
 tests/           pytest suite (emulator- and capture-driven)
 docs/            the published guide (mkdocs): USAGE, PROTOCOL, API, CLOUD_MAPPING
 ```
