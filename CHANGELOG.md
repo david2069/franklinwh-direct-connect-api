@@ -12,9 +12,11 @@ uses [Semantic Versioning](https://semver.org/).
   `franklinwh_local` import shim, the `franklinwh-local` command and the `LocalClient`/
   `LocalTransport` class aliases were all documented as "removed in 0.5.0" — but 0.5.0
   shipped with every one of them still in place, and two README lines stated the removal
-  as a past event. The date is now **0.6.0** in all seven places that carried it (the
+  as a past event. The date is now **0.6.0** in all **nine** places that carried it (the
   shim's docstring, its runtime `DeprecationWarning`, two `pyproject.toml` comments, the
-  test module, and three README lines), and each says the date moved rather than letting
+  test module, three README lines, and the `LocalClient`/`LocalTransport` alias comments
+  in `client.py` and `transport.py` — the last two found only by grepping for the stale
+  string after believing the job was done), and each says the date moved rather than letting
   the earlier promise disappear. **Nothing was removed** — the aliases still work and
   still return the same objects.
 
