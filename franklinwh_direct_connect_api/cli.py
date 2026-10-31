@@ -1315,6 +1315,25 @@ def build_parser() -> argparse.ArgumentParser:
                    help=f"transient reconnect-retries per request/login "
                         f"(default {DEFAULT_RETRIES}; raise for flaky wifi)")
 
+    g = p.add_argument_group(
+        "wire logging",
+        "Append every request and response frame to a file, the 1101/1102 login "
+        "included. Logs exactly what went over the wire; truncated and size-capped so "
+        "it is safe to leave running.")
+    g.add_argument("--wire-log", metavar="PATH",
+                   help="log all frames to PATH as JSON lines (one object per frame). "
+                        "Full payloads, including serials and any credentials the "
+                        "gateway returns -- a local diagnostic file, not one to attach")
+    g.add_argument("--wire-log-redact", action="store_true",
+                   help="mask secrets (WiFi passwords, serials, MACs, latitude/"
+                        "longitude) as <redacted:N>, keeping each value's length and "
+                        "list shape. Use for a log you are going to send to someone")
+    g.add_argument("--wire-log-max-bytes", type=int, default=1_048_576, metavar="N",
+                   help="rotate at N bytes (default 1048576 = 1 MiB)")
+    g.add_argument("--wire-log-backups", type=int, default=3, metavar="N",
+                   help="keep N rotated files, so total disk use never exceeds "
+                        "max-bytes x (N+1) (default 3, i.e. a 4 MiB ceiling)")
+
     sub = p.add_subparsers(dest="command", required=True, metavar="<command>")
 
     d = sub.add_parser("decode", help="decode frames from a pcap file")
@@ -1674,7 +1693,33 @@ def main(argv: list[str] | None = None) -> int:
     if getattr(args, "date", None) is None:
         import datetime as _dt
         args.date = _dt.date.today().isoformat()
-    return args.func(args)
+
+    wire = None
+    if getattr(args, "wire_log", None):
+        from . import wirelog
+        wire = wirelog.WireLog(args.wire_log, redact=args.wire_log_redact,
+                               max_bytes=args.wire_log_max_bytes,
+                               backups=args.wire_log_backups).open()
+        wirelog.set_default(wire)
+        # One line, stated plainly rather than as a warning: full payloads are the
+        # point of the log. The note exists because the person who enabled it may not
+        # be the person who finds the file later.
+        print(f"wire log: {args.wire_log} "
+              f"({'secrets masked' if args.wire_log_redact else 'full payloads'}, "
+              f"max {wire.max_total_bytes // 1024} KiB across "
+              f"{args.wire_log_backups + 1} files)", file=sys.stderr)
+        if not args.wire_log_redact:
+            print("          holds serials and any credentials read; local use, "
+                  "add --wire-log-redact before sharing it", file=sys.stderr)
+    try:
+        return args.func(args)
+    finally:
+        if wire is not None:
+            from . import wirelog
+            print(f"wire log: {wire.records} frames, {wire.rotations} rotation(s), "
+                  f"{wire.total_bytes()} bytes on disk", file=sys.stderr)
+            wirelog.set_default(None)
+            wire.close()
 
 
 if __name__ == "__main__":
