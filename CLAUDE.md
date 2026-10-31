@@ -191,6 +191,39 @@ claims verified on the emulator, not every claim.
 **Emulator output is not evidence of what a register or field means.** It serves what it
 was told to serve.
 
+## TCP 9000 is a reserved port
+
+**This library's emulator must never listen on TCP 9000**, and it refuses to. Owner's
+rule, 2026-10-31: `9000` belongs to a real aGate and to the **FranklinWH Gateway
+Emulator**, which is the official emulator and is deliberately *transparent* — something
+answering on 9000 is meant to be indistinguishable from a gateway. This library's mock
+must stay distinguishable from one. The rule binds both emulators and **both must
+document it**; the Gateway Emulator documents its own side.
+
+Enforced in two places, deliberately: `Emulator.__init__` raises, and the CLI rejects
+`--port 9000` at parse time so it can never reach the point of binding a socket. A
+warning would not do — a warning is missed, and a capture or bug report that names a mock
+as a gateway cannot be corrected afterwards.
+
+The reason is not hypothetical. A mock left running on 9000 was found by
+`scan 127.0.0.1` and reported as `9000/sendMqtt CONFIRMED (IBG_SN=MOCK…)`. A discovery
+result that cannot be trusted to mean "a real gateway" is worse than no discovery at all.
+
+The default is **19000**. When documenting or scripting the emulator, never use 9000 as
+the example port — the docs previously told users to, in five places.
+
+**The `proxy` is the exception, and it keeps `0.0.0.0:9000`** (owner, 2026-10-31, asked
+and answered more than once — do not re-raise it). The rule is about **what is behind the
+socket, not which port it is**. The emulator is refused because it answers with synthetic
+data, so a client reaching it believes it found a gateway when it did not. The proxy never
+answers on its own behalf: every byte is relayed verbatim to a real aGate and the real
+replies come back, so a client reaching it *is* talking to the gateway. Occupying `:9000`
+on the path between them is the tool's purpose — redirecting `:9000` is how the app gets
+captured.
+
+That exception is conditional on the proxy staying passive. If it ever gains the ability
+to synthesise or alter a reply, it must move off 9000.
+
 ## Branch before you edit, and change `main` only by pull request
 
 **Every change goes on a branch and reaches `main` through a pull request.** Nothing is

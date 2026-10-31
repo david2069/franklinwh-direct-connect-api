@@ -92,3 +92,28 @@ def test_proxy_record_writes_decodable_pcap(emulator, tmp_path):
     assert frames and all(f.verify() for f in frames)
     cmds = {f.cmd_type for f in frames}
     assert 1101 in cmds and 1102 in cmds and (1301 in cmds or 1302 in cmds)
+
+
+def test_proxy_keeps_the_reserved_port_and_the_reason_is_recorded():
+    """`proxy` is the documented exception to the TCP 9000 reserved-port rule.
+
+    Owner's ruling, 2026-10-31, asked and answered more than once. The rule is about
+    what is behind the socket, not the number: the emulator is refused on 9000
+    because it answers with SYNTHETIC data, while the proxy relays every byte to a
+    REAL aGate and never answers on its own behalf.
+
+    This test exists so nobody "consistently" applies the emulator's refusal here and
+    silently breaks app capture, which is the one workflow that needs :9000.
+    """
+    from pathlib import Path
+
+    from franklinwh_direct_connect_api import cli, proxy
+
+    listen = next(a for a in cli.build_parser()._subparsers._group_actions[0]
+                  .choices["proxy"]._actions if a.dest == "listen")
+    assert listen.default == "0.0.0.0:9000", "the proxy's listen default must stay :9000"
+
+    # And the reason is written down next to the code, not only in a commit message.
+    doc = Path(proxy.__file__).read_text()
+    assert "Listening on TCP 9000" in doc
+    assert "never answers on its own behalf" in doc
