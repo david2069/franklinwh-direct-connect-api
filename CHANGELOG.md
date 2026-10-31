@@ -25,6 +25,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`1833 device_firmware` no longer claims to be "richer than the 1101 login manifest".**
+  The 2026-10-31 read shows `1102` already carries `PE_SN`, `BMS_SN` and `BMS_VER` as
+  per-unit lists, so the stated differentiator was wrong. What `1833` actually adds is
+  `ibg_iot`, `ibg_local` and `pe_ver`, and it returns one unit's block addressed by `id`
+  rather than parallel lists — which makes it the cross-check for whether a `1102` list
+  index maps to a device `id`. Untested: no multi-aPower site has been read.
+
 - **`SUNSPEC_FW` is not a login-manifest key.** It appears in no reply; it had been
   invented elsewhere, and has since been withdrawn there too.
 
