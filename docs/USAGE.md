@@ -72,6 +72,12 @@ works:
     a gateway — a mock left on 9000 once appeared in a LAN scan as
     `9000/sendMqtt CONFIRMED`.
 
+    **`proxy` is the exception and still listens on `0.0.0.0:9000`.** The rule is about
+    what is behind the socket, not the number: the emulator answers with *synthetic* data,
+    while the proxy relays every byte to a **real** aGate and never answers on its own
+    behalf — so a client reaching it is talking to the gateway. Sitting on `:9000` between
+    the app and the device is exactly what the tool is for.
+
 ```bash
 franklinwh-direct-connect catalog                            # the 70 known cmdTypes
 franklinwh-direct-connect decode tests/fixtures/smoke.pcap   # decode a bundled capture

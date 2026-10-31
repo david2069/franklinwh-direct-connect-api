@@ -1331,6 +1331,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     px = sub.add_parser("proxy", help="transparent decoding relay between the app and a real aGate")
     px.add_argument("target", help="real aGate, host or host:port (default port 9000)")
+    # 0.0.0.0:9000 is intentional and is the documented exception to the reserved-port
+    # rule: the proxy relays to a REAL aGate and never answers on its own behalf, so a
+    # client reaching it is talking to the gateway. See proxy.py, "Listening on TCP 9000".
     px.add_argument("--listen", default="0.0.0.0:9000",
                     help="bind address host:port (default 0.0.0.0:9000)")
     px.add_argument("--once", action="store_true", help="serve a single connection then exit")

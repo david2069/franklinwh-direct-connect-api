@@ -16,6 +16,26 @@ the aGate (via ARP-spoof + DNAT, a host route, or anything that redirects
 
 A direction label is passed to ``on_frame``: ``"app->aGate"`` (requests, usually
 the interesting writes) or ``"aGate->app"`` (replies).
+
+Listening on TCP 9000
+---------------------
+**The proxy may listen on 9000; the emulator may not.** That is deliberate, and the
+distinction is what is behind the socket, not which port it is.
+
+TCP 9000 is reserved for a real aGate and for the **FranklinWH Gateway Emulator** (the
+official, deliberately transparent emulator). This library's ``emulate`` mode is refused
+there because it answers with **synthetic data** — anything that reached it would be
+talking to a mock while believing it had found a gateway, and a capture, scan result or
+bug report produced that way cannot be corrected afterwards.
+
+The proxy is the opposite case. It **never answers on its own behalf**: every byte is
+relayed verbatim to a real aGate and the real replies come back. A client that reaches
+this proxy *is* talking to the gateway, so occupying ``:9000`` on the path between them
+is the point of the tool rather than a hazard — redirecting ``:9000`` is precisely how
+the app is captured. Its default listen address stays ``0.0.0.0:9000``.
+
+Owner's ruling, 2026-10-31. If this proxy is ever given the ability to synthesise or
+alter a reply, the exception stops applying and it must move off 9000.
 """
 
 from __future__ import annotations

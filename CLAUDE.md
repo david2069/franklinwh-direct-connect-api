@@ -212,6 +212,18 @@ result that cannot be trusted to mean "a real gateway" is worse than no discover
 The default is **19000**. When documenting or scripting the emulator, never use 9000 as
 the example port — the docs previously told users to, in five places.
 
+**The `proxy` is the exception, and it keeps `0.0.0.0:9000`** (owner, 2026-10-31, asked
+and answered more than once — do not re-raise it). The rule is about **what is behind the
+socket, not which port it is**. The emulator is refused because it answers with synthetic
+data, so a client reaching it believes it found a gateway when it did not. The proxy never
+answers on its own behalf: every byte is relayed verbatim to a real aGate and the real
+replies come back, so a client reaching it *is* talking to the gateway. Occupying `:9000`
+on the path between them is the tool's purpose — redirecting `:9000` is how the app gets
+captured.
+
+That exception is conditional on the proxy staying passive. If it ever gains the ability
+to synthesise or alter a reply, it must move off 9000.
+
 ## Branch before you edit, and change `main` only by pull request
 
 **Every change goes on a branch and reaches `main` through a pull request.** Nothing is

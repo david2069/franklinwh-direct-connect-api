@@ -20,6 +20,11 @@ uses [Semantic Versioning](https://semver.org/).
   result, capture or bug report that names a mock as a real gateway cannot be corrected
   after the fact.
 
+  **`proxy` is unaffected and still listens on `0.0.0.0:9000`.** The rule is about what
+  is behind the socket, not the number: the proxy relays every byte to a real aGate and
+  never answers on its own behalf, so sitting on `:9000` between the app and the device is
+  what the tool is for.
+
   **If you scripted `emulate --port 9000`, it will now fail** — drop the flag to get
   19000, or pick any other free port. The documentation told you to use 9000 in five
   places; all of them are corrected.

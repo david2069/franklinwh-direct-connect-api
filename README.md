@@ -50,6 +50,11 @@ franklinwh-direct-connect --host 127.0.0.1 --port 19000 power_flow  # ... talk t
 > 9000 is meant to be indistinguishable from a gateway. This library's mock must stay
 > distinguishable from one: a mock left on 9000 once showed up in a LAN scan as
 > `9000/sendMqtt CONFIRMED`, which makes every discovery result untrustworthy.
+>
+> **`proxy` is the exception** and still listens on `0.0.0.0:9000`: it relays every byte
+> to a *real* aGate and never answers on its own behalf, so a client reaching it is
+> talking to the gateway. Sitting on `:9000` between the app and the device is the point
+> of that tool.
 
 The emulator is a development aid. It serves what it was told to serve, so it is **not**
 evidence of how real hardware behaves.
