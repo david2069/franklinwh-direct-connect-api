@@ -59,12 +59,21 @@ approved.
 
 ### Regression risk if built
 
-**Medium, and it is an API break.** `HostResult` is exported and `scan` returns
-`list[HostResult]`; moving to one row per (host, port) changes the return shape for every
-caller, including the `scan` CLI subcommand and `expand_targets` users. The CLI's
-confusion guard (a port given where a host belongs) also needs revisiting once ports are
-first-class. Worth doing as a **0.6.0** change alongside the alias removal already dated
-there, rather than a patch.
+**Low, as now scoped — the breaking option was declined.** Changing `scan` to one row per
+(host, port) would have been an API break: `HostResult` is exported, `scan` returns
+`list[HostResult]`, and every caller including the `scan` CLI subcommand would have had to
+change. That would have been **0.6.0** work.
+
+**The consumer chose the additive design instead** (Direct Connect Bridge session,
+2026-10-31): a new `scan_ports()` returning a new `PortResult` type, plus `expand_ports()`,
+leaving `scan`, `HostResult` and `expand_targets` untouched. Nothing breaks, so it can ship
+before 0.6.0. They also confirmed the bridge builds its own display text from the fields
+and does **not** use `summary()`, so the hardcoded `"9000/sendMqtt"` string above is not on
+their critical path — it still needs fixing for CLI users, but it does not gate them.
+
+So: additive surface, low regression risk, no caller forced to change on upgrade. The
+hardcoded-port defect in `summary()` is tracked here and should be fixed in the same batch,
+since a scan that can report any port must not print `9000` for all of them.
 
 ---
 
