@@ -86,7 +86,7 @@ class CmdInfo:
 
 # request cmdType -> metadata
 CATALOG: dict[int, CmdInfo] = {
-    1101: CmdInfo(1101, 1102, "login", "Login handshake; reply carries firmware/version manifest (IBG_SN, FHP_SN, BMS_SN, *_VER)"),
+    1101: CmdInfo(1101, 1102, "login", "Login handshake; reply is a 27-key firmware/serial manifest. Measured on the reference aGate 2026-10-31 (IBG V12R02B60D00_260924, protocolVer V1.12.02): request {opt:0, minProtocolVer} returns result=0 reason=0. KEEP minProtocolVer - a bare {opt:0} 1101, as a SECOND login on one connection, was recorded answering result=1 reason=-2 while still returning a manifest (DC Bridge record 2026-10-20, relayed, not reproduced here), matching the result=1/negative-reason pattern on 1103 and 1123. 13 fields are LISTS: FHP_SN, PE_SN, BMS_SN, FPGA_VER, DCDC_VER, INV_VER, BMS_VER, BL_VER, TH_VER, PE_HW_VER, BMS_MAIN_HW_VER, BMS_BL_HW_VER, BMS_TH_HW_VER. 14 are scalars: IBG_SN, IBG_VER, APP_VER, AWS_VER, SL_VER, METER_VER, protocolVer, FHP_NUM, SyHdVersion, deviceType, threePhasePvPower, opt, result, reason. That site has ONE aPower and every list had ONE element: list-vs-scalar is established, ONE ENTRY PER APOWER IS NOT. No SUNSPEC_FW key."),
     1109: CmdInfo(1109, 1110, "wifi_scan", "Scan for nearby WiFi access points"),
     1111: CmdInfo(1111, 1112, "wifi_config", "WiFi/AP config: wifi_SSID, wifi_Pw, ap_SSID, ap_Pw, wifi_Safety"),
     1113: CmdInfo(1113, 1114, "connectivity", "Connectivity: routerStatus, netStatus, awsStatus"),

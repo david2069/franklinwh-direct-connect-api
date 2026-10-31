@@ -34,13 +34,15 @@ DEFAULT_TIMEOUT = 20.0   # seconds; generous for slow/flaky local wifi
 DEFAULT_RETRIES = 2      # transient reconnect-retries per connect/request
 ERROR_CMD = 9999         # aGate's generic error/unsupported-cmdType response frame
 LOGIN_EQUIP = "00000000"
-#: The 1101 request body. Deliberately NOT validated against ``result`` on the reply --
-#: see ``_login_locked``. The aGate has been reported to answer 1102 with
-#: ``result: 1, reason: -2`` while still returning the full manifest, so a
-#: ``result == 0`` gate here would make login FAIL against real hardware.
-#: That report is the FranklinWH Emulator session's reading of the Direct Connect
-#: Bridge's stored 2026-10-21 firmware sweep (IBG_VER V12R02B60D00_260924), cited and
-#: NOT verified in this repository -- see BACKLOG DEF-LOGIN-REQUEST-UNDERSPECIFIED.
+#: The 1101 request body, and it is ACCEPTED as-is: measured on the reference aGate
+#: 2026-10-31 (IBG_VER V12R02B60D00_260924, protocolVer V1.12.02), this request returns
+#: ``result: 0, reason: 0`` with the full 27-key manifest.
+#:
+#: **Do not drop ``minProtocolVer``.** A 1101 of just ``{"opt": 0}`` has been recorded
+#: answering ``result: 1, reason: -2`` (see ``_login_locked``). It is not established
+#: whether the missing field or the repeat login caused that, so keep both keys.
+#:
+#: The reply is still NOT validated against ``result`` -- see ``_login_locked`` for why.
 LOGIN_DATA_AREA = {"opt": 0, "minProtocolVer": "V1.00.00"}
 
 
@@ -276,16 +278,30 @@ class DirectConnectTransport:
     def _login_locked(self, data_area: Any | None) -> Frame:
         """Send 1101 and accept the 1102 reply WITHOUT checking ``result``.
 
-        This is deliberate. ``result: 1`` on a 1102 does not mean the login failed: the
-        aGate has been reported to return the complete firmware manifest alongside
-        ``result: 1, reason: -2``. The same pair is already recorded in the catalogue for
-        two other reads -- 1103 answers it when the request omits ``devNum``, and 1123
-        returns the aGate serial with it -- so on this protocol it reads as "the request
-        was not the shape I expected", served best-effort, not as a failure.
+        Deliberate, and the evidence is specific about when ``result`` is non-zero.
 
-        A ``result == 0`` gate here would therefore break login against real hardware.
-        Do not add one. If login needs to become stricter, the thing to fix first is the
-        REQUEST (see ``LOGIN_DATA_AREA``), not the reply check.
+        A **full** login -- ``{opt: 0, minProtocolVer: ...}``, first on the connection --
+        answers ``result: 0, reason: 0`` (measured on the reference aGate 2026-10-31,
+        IBG_VER V12R02B60D00_260924).
+
+        A **1101 of just** ``{"opt": 0}``, with ``minProtocolVer`` omitted and sent as a
+        second login on an already-authenticated connection, answers
+        ``result: 1, reason: -2`` -- and still returns a 1102 manifest. That is the
+        Direct Connect Bridge's stored record of 2026-10-20T20:10:50Z, reported to this
+        session via the Emulator session and NOT reproduced here. Which of the two
+        differences causes it -- the missing ``minProtocolVer``, or the repeat login on
+        one session -- is **not established**.
+
+        So a ``result == 0`` gate would not break the normal path, and the reason to stay
+        permissive is the pattern across cmdTypes: on this protocol ``result=1`` with a
+        negative ``reason`` means "the request was not the shape I expected", and the
+        device **serves the payload anyway**. The catalogue records it for 1103 (request
+        omitting ``devNum``) and 1123 (returns the aGate serial regardless). Login is the
+        exchange every other call depends on, so rejecting a reply that carries a perfectly
+        good manifest would turn a request-shape quirk into a total outage.
+
+        If login should become stricter, gate on the manifest being USABLE -- ``IBG_SN``
+        present -- rather than on ``result``.
         """
         self._login_data_area = data_area
         last: Exception | None = None

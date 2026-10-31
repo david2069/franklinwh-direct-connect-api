@@ -39,3 +39,8 @@ private/
 # Never committable, even by accident. Use --wire-log-redact for anything shared.
 *.jsonl
 *.jsonl.[0-9]
+
+# Live-test records: local history for the next session, never public evidence.
+# (Also added on the policy branch; harmless if both land.)
+tests/results/*
+!tests/results/README.md

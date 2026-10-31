@@ -215,3 +215,55 @@ def test_wire_logs_cannot_be_committed_by_accident():
     out = subprocess.run(["git", "check-ignore", "-q", str(root / "wire.jsonl")],
                          cwd=root, capture_output=True)
     assert out.returncode == 0, "*.jsonl is not gitignored -- a full wire log could be committed"
+
+
+# -- the measured 1102 shape (reference aGate, 2026-10-31) -------------------
+#: Field shapes measured on the reference aGate 2026-10-31, IBG_VER
+#: V12R02B60D00_260924, protocolVer V1.12.02, ONE aPower. Recorded here so a change
+#: to FIRMWARE_FIELDS cannot silently drop a field the device actually sends.
+MANIFEST_LISTS = (
+    "FHP_SN", "PE_SN", "BMS_SN", "FPGA_VER", "DCDC_VER", "INV_VER", "BMS_VER",
+    "BL_VER", "TH_VER", "PE_HW_VER", "BMS_MAIN_HW_VER", "BMS_BL_HW_VER", "BMS_TH_HW_VER",
+)
+MANIFEST_SCALARS = (
+    "IBG_SN", "IBG_VER", "APP_VER", "AWS_VER", "SL_VER", "METER_VER", "protocolVer",
+    "FHP_NUM", "SyHdVersion", "deviceType", "threePhasePvPower",
+)
+
+
+def test_firmware_fields_covers_every_measured_manifest_key():
+    """`firmware()` must not silently drop a field the gateway really sends.
+
+    Six keys were missing until 2026-10-31 -- the four per-aPower *_HW_VER lists,
+    deviceType and threePhasePvPower -- so `firmware()` quietly omitted them. It
+    filters by known key, so an unknown field fails silently rather than loudly,
+    which is why this is pinned by a test rather than left to review.
+    """
+    from franklinwh_direct_connect_api.client import DirectConnectClient
+
+    fields = set(DirectConnectClient.FIRMWARE_FIELDS)
+    missing = [k for k in MANIFEST_LISTS + MANIFEST_SCALARS if k not in fields]
+    assert not missing, f"measured 1102 keys absent from FIRMWARE_FIELDS: {missing}"
+
+
+def test_sunspec_fw_is_not_treated_as_a_manifest_key():
+    """It does not exist in the reply; it was invented elsewhere and withdrawn."""
+    from franklinwh_direct_connect_api.client import DirectConnectClient
+
+    assert "SUNSPEC_FW" not in DirectConnectClient.FIRMWARE_FIELDS
+
+
+def test_redaction_keeps_every_measured_list_a_list():
+    """The shapes the live read established must survive a redacted log.
+
+    This is what makes a redacted capture usable as shape evidence: a reader has to
+    be able to tell a one-element list from a short string.
+    """
+    manifest = {k: ["X" * 22] for k in MANIFEST_LISTS}
+    manifest.update({k: "Y" * 20 for k in MANIFEST_SCALARS})
+    out = redact(manifest)
+    for key in MANIFEST_LISTS:
+        assert isinstance(out[key], list), f"{key} lost its list shape under redaction"
+        assert len(out[key]) == 1
+    for key in MANIFEST_SCALARS:
+        assert not isinstance(out[key], list), f"{key} gained a list shape"
