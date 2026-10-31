@@ -9,9 +9,14 @@ and the package reads it back through the installed metadata.
 
 from __future__ import annotations
 
-import tomllib
+import re
 from importlib import metadata
 from pathlib import Path
+
+try:                                  # tomllib is stdlib only from 3.11
+    import tomllib
+except ModuleNotFoundError:           # pragma: no cover - exercised on 3.10 CI
+    tomllib = None
 
 import pytest
 
@@ -22,8 +27,19 @@ PYPROJECT = Path(__file__).resolve().parent.parent / "pyproject.toml"
 
 
 def _declared_version() -> str:
-    with PYPROJECT.open("rb") as fh:
-        return tomllib.load(fh)["project"]["version"]
+    """The version declared in pyproject.toml.
+
+    `tomllib` arrived in Python 3.11 and this package supports 3.10, so a bare
+    `import tomllib` here broke collection of the WHOLE suite on 3.10 -- the
+    failure CI caught and a 3.14 dev venv could not. The regex fallback avoids
+    taking a `tomli` dependency just to read one string in one test.
+    """
+    raw = PYPROJECT.read_text(encoding="utf-8")
+    if tomllib is not None:
+        return tomllib.loads(raw)["project"]["version"]
+    match = re.search(r'^version\s*=\s*"([^"]+)"', raw, re.MULTILINE)
+    assert match, "no version found in pyproject.toml"
+    return match.group(1)
 
 
 @pytest.mark.skipif(not PYPROJECT.exists(), reason="installed without the source tree")
