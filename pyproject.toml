@@ -2,8 +2,12 @@
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
-# Distribution name is `franklinwh-direct-connect-api` (PyPI); the import package stays
-# `franklinwh_local` and the CLI command stays `franklinwh-local`.
+# Distribution, import package and CLI all carry the Direct Connect name as of 0.4.0:
+# `franklinwh-direct-connect-api` on PyPI, `franklinwh_direct_connect_api` to import,
+# `franklinwh-direct-connect` on the command line. The pre-0.4.0 spellings survive only
+# as aliases -- the `franklinwh_local` shim package and the `LocalClient` class name --
+# not as the real names. `version` below is the single source of truth; the package
+# reads it back through its installed metadata rather than restating it.
 [project]
 name = "franklinwh-direct-connect-api"
 version = "0.5.0"

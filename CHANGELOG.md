@@ -31,6 +31,13 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`__version__` no longer reports a release behind the one you installed.** It was a
+  hand-maintained literal reading `0.4.0` while the published distribution was `0.5.0`,
+  so anything logging the library version — a bridge recording its dependency, a bug
+  report, `health` output — named the wrong release. `pyproject.toml` is now the single
+  source and the package reads it back from its installed distribution metadata, with a
+  test that fails if the two ever diverge again.
+
 - **The deprecation notices no longer promise a removal that already passed.** The
   `franklinwh_local` import shim, the `franklinwh-local` command and the `LocalClient`/
   `LocalTransport` class aliases were all documented as "removed in 0.5.0" — but 0.5.0
