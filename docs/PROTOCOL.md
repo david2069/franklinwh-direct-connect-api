@@ -122,7 +122,7 @@ history — all of which are in that listing and in
 | 1401 → 1402 | smart_circuit_schedule | per-switch schedule/timer: swXMode/AutoEn/Freq/TimeEn/TimeSet/Time (X=1..3) |
 | 1409 → 1410 | smart_circuits | SwMerge, SwXName, SwXMode, SwXProLoad, SwXFreq, SwXTime (**write** with opt=1) |
 | 1411 → 1412 | smart_circuit_meter | live SwXVolt/Curr, SWXExpPower/Energy, CarSW* (EV charger) |
-| 1701 → 1702 | install_profile | electricSys, airSwitchCur, gridPhase*, solarInstallState, genRatePower, fhpRatePower |
+| 1701 → 1702 | install_profile | electricSys, **electricSupply** (the supply/service amps), **airSwitchCur** (the air-switch rating — *not* the service amps), gridPhase*, solarInstallState, genRatePower, fhpRatePower, plus the grid power-plane limits |
 | 1721 → 1722 | device_control | reboot, reset, update (maintenance; **destructive** if written) |
 | 1723 → 1724 | offgrid | offgridSet, offgridSoc, offgridState (**write** with opt=1) |
 | 1725 → 1726 | mode_list | current_id, list[{id, name, reserved_soc, ...}] |

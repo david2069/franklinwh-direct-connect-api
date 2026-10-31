@@ -8,6 +8,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **`electricSupply` is the supply/service amperage, and `airSwitchCur` is the air-switch
+  rating — the catalogue had it backwards.** It described `electricSupply` as an undecoded
+  capability bitfield (`63 = 0b111111`) and treated `airSwitchCur` as the service amps. The
+  owner confirmed on 2026-09-27 that his site is a **63 A supply**, reading
+  `electricSupply=63` with `airSwitchCur=100`: 63 is simply 63 amps. The two differ
+  whenever the supply is smaller than the air switch can carry, so substituting one for the
+  other misreports the service rating. `docs/PROTOCOL.md` now names both fields in the
+  `1701` row instead of listing only `airSwitchCur`.
+
+### Fixed
+
 - **The deprecation notices no longer promise a removal that already passed.** The
   `franklinwh_local` import shim, the `franklinwh-local` command and the `LocalClient`/
   `LocalTransport` class aliases were all documented as "removed in 0.5.0" — but 0.5.0
