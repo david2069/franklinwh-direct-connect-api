@@ -281,8 +281,18 @@ Add new rows to `franklinwh_direct_connect_api/catalog.py` as more codes are obs
 
 #### Grid power-plane limits (1701)
 
-`1701` carries `kwRatePower`, `gridSoftLimit`, `gridHardLimit` and `gridImportLimit`
-(−1 = unlimited). Whether a write to them is **stored** depends on something that has not
+`1701` carries `kwRatePower`, `gridSoftLimit`, `gridHardLimit` and — **on newer firmware
+only** — `gridImportLimit` (−1 = unlimited).
+
+!!! warning "The 1701 key set is firmware-dependent"
+    `gridImportLimit` is **absent** from all four `1702` replies captured on
+    `V12R02B30D06_260304`, and **present** on `V12R02B60D00`. Do not assume the key
+    exists.
+
+    This is the second command known to change its key set with firmware — `1102` gained
+    `PE_HW_VER`, `BMS_MAIN_HW_VER`, `BMS_BL_HW_VER` and `BMS_TH_HW_VER` over the same
+    upgrade, on the same gateway with nothing swapped. **Treat a manifest or profile key
+    set as firmware-specific, and record `IBG_VER` beside any key list you publish.** Whether a write to them is **stored** depends on something that has not
 yet been pinned down:
 
 | condition | result | when |
