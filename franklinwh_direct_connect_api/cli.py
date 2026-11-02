@@ -393,7 +393,12 @@ def _cmd_debug_mode(args: argparse.Namespace) -> int:
         print("error: --host/-i is required for live commands", file=sys.stderr)
         return 2
     want = getattr(args, "set", None)
-    with _client(args) as c:
+    # Construct the client the same way every other live command does. This read
+    # `with _client(args) as c:` -- a helper that does not exist anywhere in this
+    # module, so `debug_mode` raised NameError before opening a socket and had
+    # never worked. See DEF-CLI-DEBUG-MODE-NAMEERROR.
+    with DirectConnectClient(args.host, args.port, timeout=args.timeout,
+                             retries=args.retries, equip_no=args.equip) as c:
         c.login()
         if want is None:
             data = c.debug_mode()
