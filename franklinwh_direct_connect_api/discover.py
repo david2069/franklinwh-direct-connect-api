@@ -88,6 +88,49 @@ def expand_targets(spec: str) -> list[str]:
 # ---------------------------------------------------------------------------
 # Low-level checks
 # ---------------------------------------------------------------------------
+def expand_ports(spec: str) -> list[int]:
+    """
+    Expand a port spec into port numbers.
+
+    Accepts a single port (``9000``), a hyphen range (``9020-9030``), or a
+    comma-separated mix (``9000,9020-9030``). Duplicates are removed and the
+    result is sorted, so ``"9000,9000,9002-9001"`` is an error rather than a
+    surprise.
+
+    The companion to :func:`expand_targets`, and separate from it for the same
+    reason that function rejects a bare integer: a port where a host belongs is
+    the easy mistake, and it should fail loudly rather than scan nothing.
+
+    Raises ``ValueError`` for a port outside 1-65535, a reversed range, or a
+    token that is not a number.
+    """
+    ports: list[int] = []
+
+    def _one(tok: str) -> int:
+        try:
+            n = int(tok)
+        except ValueError:
+            raise ValueError(
+                f"invalid port {tok!r} — expected a number, e.g. 9000"
+            ) from None
+        if not 1 <= n <= 65535:
+            raise ValueError(f"port {n} out of range — expected 1-65535")
+        return n
+
+    for part in (p.strip() for p in spec.split(",") if p.strip()):
+        if "-" in part.lstrip("-"):
+            lo_s, hi_s = part.split("-", 1)
+            lo, hi = _one(lo_s.strip()), _one(hi_s.strip())
+            if hi < lo:
+                raise ValueError(
+                    f"reversed port range {part!r} — expected low-high, e.g. 9020-9030"
+                )
+            ports.extend(range(lo, hi + 1))
+        else:
+            ports.append(_one(part))
+    return sorted(set(ports))
+
+
 def default_gateway() -> str | None:
     """
     Best-effort guess of the current default-gateway IP (the hotspot gateway,
@@ -210,6 +253,92 @@ class HostResult:
         if self.modbus_open:
             bits.append("502/modbus" + (" CONFIRMED" if self.modbus_confirmed else ""))
         return f"{self.host}: " + (", ".join(bits) if bits else "no FranklinWH ports")
+
+
+@dataclass
+class PortResult:
+    """One scanned ``(host, port)`` pair — the port is part of the identity.
+
+    :class:`HostResult` carries booleans keyed by host and can only ever describe
+    the two default ports, so it cannot represent two Direct Connect listeners on
+    one address (an emulator host serving 9020-9024 collapses to a single row with
+    the port recorded nowhere). This type exists for that case and is additive:
+    ``scan`` and ``HostResult`` are unchanged.
+    """
+
+    host: str
+    port: int
+    open: bool = False
+    confirmed: bool = False          # answered a real 1101 login handshake
+    manifest: dict | None = None     # the 1102 reply, when confirmed
+
+    @property
+    def serial(self) -> str | None:
+        """``IBG_SN`` from the login reply, or None if not confirmed."""
+        return (self.manifest or {}).get("IBG_SN")
+
+    def summary(self) -> str:
+        if not self.open:
+            return f"{self.host}:{self.port} closed"
+        if not self.confirmed:
+            return f"{self.host}:{self.port} open (no login reply — not a gateway)"
+        return f"{self.host}:{self.port} CONFIRMED (IBG_SN={self.serial})"
+
+    def __str__(self) -> str:
+        return self.summary()
+
+
+def scan_ports(
+    targets: Iterable[str],
+    ports: Iterable[int] = (PORT_SENDMQTT,),
+    *,
+    timeout: float = 0.5,
+    workers: int = 128,
+    probe: bool = True,
+) -> list[PortResult]:
+    """Scan every ``(host, port)`` pair for a Direct Connect listener.
+
+    Unlike :func:`scan`, ``ports`` here is **the list of ports to scan**, not a
+    filter over two constants — so a gateway or emulator on any port is found.
+    Returns one :class:`PortResult` per open port, so two listeners on one host
+    are two rows.
+
+    ``probe=True`` confirms each open port with a real ``1101`` login handshake,
+    which is what distinguishes a gateway from anything else listening. Modbus is
+    not probed here: use :func:`scan` for that, unchanged.
+
+    Raises ``KeyboardInterrupt`` (after cancelling in-flight threads) so a caller
+    can print a clean exit message.
+    """
+    pairs = [(h, int(p)) for h in targets for p in ports]
+    if not pairs:
+        return []
+    results: list[PortResult] = []
+
+    def check(host: str, port: int) -> PortResult:
+        r = PortResult(host, port)
+        r.open = port_open(host, port, timeout)
+        if probe and r.open:
+            r.manifest = probe_sendmqtt(host, port, max(timeout, 2.0))
+            r.confirmed = r.manifest is not None
+        return r
+
+    ex = ThreadPoolExecutor(max_workers=min(workers, max(1, len(pairs))))
+    try:
+        futs = {ex.submit(check, h, p): (h, p) for h, p in pairs}
+        for fut in as_completed(futs):
+            r = fut.result()
+            if r.open:
+                results.append(r)
+    except KeyboardInterrupt:
+        for f in futs:
+            f.cancel()
+        ex.shutdown(wait=False, cancel_futures=True)
+        raise
+    finally:
+        ex.shutdown(wait=False)
+    results.sort(key=lambda r: (r.host, r.port))
+    return results
 
 
 def scan(

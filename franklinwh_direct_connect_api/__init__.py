@@ -53,7 +53,14 @@ from .protocol import (
     iter_pcap_frames,
 )
 from .transport import DirectConnectTransport, TransportError
-from .discover import HostResult, expand_targets, scan
+from .discover import (
+    HostResult,
+    PortResult,
+    expand_ports,
+    expand_targets,
+    scan,
+    scan_ports,
+)
 from .emulator import Emulator
 from .proxy import log_frame, serve as proxy_serve
 from .wirelog import SENSITIVE_FIELDS, WireLog, redact
@@ -101,8 +108,11 @@ __all__ = [
     "TransportError",
     "Emulator",
     "HostResult",
+    "PortResult",
     "scan",
+    "expand_ports",
     "expand_targets",
+    "scan_ports",
     "proxy_serve",
     "log_frame",
     "WireLog",
