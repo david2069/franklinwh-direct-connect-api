@@ -6,6 +6,17 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`gridImportLimit` is not always present in the `1701` install profile.** The catalogue
+  listed it unconditionally; it is **absent** on `V12R02B30D06` and present on
+  `V12R02B60D00`. A caller reading it directly would `KeyError` against an older gateway.
+
+  This is the **second** command whose key set changes with firmware — `1102` gained the
+  four `*_HW_VER` lists over the same upgrade, on the same gateway with nothing swapped.
+  `docs/PROTOCOL.md` now states the general rule: treat a manifest or profile key set as
+  firmware-specific, and record `IBG_VER` beside any published key list.
+
 ## [0.5.2] — 2026-11-01
 
 ### Upgrade notes
