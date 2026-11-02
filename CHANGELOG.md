@@ -6,6 +6,27 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`scan_ports()` finds a gateway on any port, and reports one result per host *and*
+  port.** With `expand_ports("9000,9020-9030")` beside the existing `expand_targets`, and
+  `--ports` on the `scan` command.
+
+  `scan()`'s `ports` argument was never a list of ports to scan — it is a **filter over two
+  hardcoded constants**. Pass anything else and neither branch fires, nothing is probed,
+  and the host is reported as not a candidate, with **no error and no warning**. A live
+  listener on 9020 returned nothing at all, which a caller cannot distinguish from "no
+  gateway here".
+
+  `HostResult` also keys by host and carries booleans, so two listeners on one address
+  could never both be reported and the port was recorded nowhere.
+
+  **Additive on purpose:** `scan`, `HostResult` and `expand_targets` are untouched, so no
+  caller changes on upgrade. New `PortResult` carries `host`, `port`, `open`, `confirmed`,
+  `manifest` and a `serial` convenience. `confirmed` means a real `1101` handshake
+  answered — which is what separates a gateway from anything else listening. Modbus
+  probing is unchanged and stays with `scan`.
+
 ## [0.5.2] — 2026-11-01
 
 ### Upgrade notes
