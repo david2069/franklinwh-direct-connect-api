@@ -6,6 +6,21 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-11-03
+
+### Upgrade notes
+
+- **New API, nothing removed.** `scan_ports()`, `expand_ports()`, `PortResult` and
+  `catalog.OFFGRID_STATE` are additions; `scan()`, `HostResult` and `expand_targets` are
+  untouched, so no caller changes on upgrade.
+- **The `franklinwh_local` alias is still here.** Its docstring has said "removal in
+  0.6.0" since the date was corrected; it is **not** removed in this release. Consumers
+  still import it, and breaking them to honour a version number would be the wrong trade.
+  It will go in its own release once those are clear — the date moves again, and says so.
+- **If you detect off-grid state**, note that `offgridState` reads `0` on the reply to the
+  write itself, in **both** directions. Read it from the *next* read, not the write
+  response.
+
 ### Added
 
 - **`offgridState` is decoded: `0` transitioning, `1` off-grid, `2` grid-connected**
