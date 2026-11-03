@@ -21,8 +21,8 @@ pre-0.4.0 spellings still work, because removing them would break existing code:
 across both spellings), the `franklinwh-local` command is the same entry point, and
 `LocalClient`/`LocalTransport` remain aliases of `DirectConnectClient`/
 `DirectConnectTransport`. Importing the old package emits a `DeprecationWarning`, and the
-aliases are **scheduled for removal in 0.6.0** — the date was previously 0.5.0, which
-shipped with them still in place.
+aliases are **scheduled for removal in 0.7.0** — the date was previously 0.5.0 and then
+0.6.0, and both shipped with them still in place.
 
 **It is not intended for production use, and there is no guarantee it is compatible with
 your FranklinWH gateway(s), aPower(s) or connectivity — now or in the future.** FranklinWH
@@ -189,7 +189,7 @@ Connect** is FranklinWH's own term for this protocol.
 ### Migrating from 0.3.x and earlier
 
 The import package was `franklinwh_local` and the CLI was `franklinwh-local`. Both still
-work and emit a `DeprecationWarning`; **they are scheduled for removal in 0.6.0**.
+work and emit a `DeprecationWarning`; **they are scheduled for removal in 0.7.0**.
 
 ```python
 from franklinwh_local import LocalClient                         # 0.3.x — deprecated
@@ -494,7 +494,7 @@ franklinwh_direct_connect_api/
   bms.py         per-cell battery rendering for the `battery` command
   probe.py       read-only cmdType sweep with a payload matrix
   proxy.py       transparent decoding relay
-franklinwh_local/  deprecated import shim (to be removed in 0.6.0)
+franklinwh_local/  deprecated import shim (to be removed in 0.7.0)
 tests/           pytest suite (emulator- and capture-driven)
 docs/            the published guide (mkdocs): USAGE, PROTOCOL, API, CLOUD_MAPPING
 ```
