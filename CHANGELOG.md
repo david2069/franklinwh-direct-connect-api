@@ -8,6 +8,28 @@ uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`offgridState` is decoded: `0` transitioning, `1` off-grid, `2` grid-connected**
+  (`catalog.OFFGRID_STATE`). The field was named in the catalogue and the docs but never
+  decoded. Measured from a capture of the official app driving the reference aGate — 16
+  request/reply pairs covering a full cycle each way.
+
+  The useful detail is the transition: **the write reply itself carries `offgridState` 0**
+  whichever direction the change goes, and only the *following* read settles to `1` or
+  `2`. `offgridSet` is what the gateway was *asked* to do; `offgridState` is what it is
+  doing.
+
+### Fixed
+
+- **The mock aGate now answers a `1723` off-grid read properly.** It returned a bare
+  `{'opt': 0, 'result': 0}` with no `offgridSet`, `offgridSoc` or `offgridState`, so a
+  client reading off-grid status against a mock saw nothing and an off-grid write could
+  not be observed to take effect. The mock now holds the state, sets it on an `opt:1`
+  write, and reproduces the measured transition — including reporting `0` on the write
+  reply rather than settling immediately, which is what lets a client see the transition
+  at all.
+
+### Added
+
 - **`scan_ports()` finds a gateway on any port, and reports one result per host *and*
   port.** With `expand_ports("9000,9020-9030")` beside the existing `expand_targets`, and
   `--ports` on the `scan` command.
