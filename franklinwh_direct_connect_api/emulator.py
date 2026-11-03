@@ -142,6 +142,10 @@ class Emulator:
             return site.snapshot(now)
         if resp_cmd == 1726:
             return site.mode_list(now)
+        if resp_cmd == 1724:                # 1723 off-grid: read (opt 0) or write (opt 1)
+            if isinstance(req, dict) and req.get("opt") == 1:
+                return site.set_offgrid(req)
+            return site.offgrid()
         if resp_cmd == 1102:
             return site.login_manifest(self.units)
         if resp_cmd == 1404:

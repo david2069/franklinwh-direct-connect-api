@@ -124,7 +124,7 @@ history — all of which are in that listing and in
 | 1411 → 1412 | smart_circuit_meter | live SwXVolt/Curr, SWXExpPower/Energy, CarSW* (EV charger) |
 | 1701 → 1702 | install_profile | electricSys, **electricSupply** (the supply/service amps), **airSwitchCur** (the air-switch rating — *not* the service amps), gridPhase*, solarInstallState, genRatePower, fhpRatePower, plus the grid power-plane limits |
 | 1721 → 1722 | device_control | reboot, reset, update (maintenance; **destructive** if written) |
-| 1723 → 1724 | offgrid | offgridSet, offgridSoc, offgridState (**write** with opt=1) |
+| 1723 → 1724 | offgrid | offgridSet (asked), offgridSoc, offgridState (actual — `0` transitioning, `1` off-grid, `2` grid-connected) (**write** with opt=1) |
 | 1725 → 1726 | mode_list | current_id, list[{id, name, reserved_soc, ...}] |
 | 1727 → 1728 | mode_page | opt=3 + current_id **SETS the active mode**; else paging/keep-alive |
 | 1829 → 1830 | event_block | num, data, level, startTime |

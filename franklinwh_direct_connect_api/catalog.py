@@ -134,7 +134,7 @@ CATALOG: dict[int, CmdInfo] = {
     1707: CmdInfo(1707, 1708, "ibg_run_status", "IBG run status: ibgRunStatus (programme id), name, energyMode [cloud: get_runtime_data()]"),
     1709: CmdInfo(1709, 1710, "relay_status", "Relay status: gridRelayAdhesion, gridRelayOpen, genRelayAdhesion, genRelayOpen [cloud: get_power_info()]"),
     1721: CmdInfo(1721, 1722, "device_control", "Device maintenance controls: reboot, reset, update (read-only by default; writing opt=1 would trigger these — DESTRUCTIVE, write UNVERIFIED)"),
-    1723: CmdInfo(1723, 1724, "offgrid", "Off-grid settings: offgridSet, offgridSoc, offgridState (set with opt=1)"),
+    1723: CmdInfo(1723, 1724, "offgrid", "Off-grid settings: offgridSet, offgridSoc, offgridState (set with opt=1). offgridState MEASURED as a 3-value enum - see OFFGRID_STATE"),
     1725: CmdInfo(1725, 1726, "mode_list", "Operating-mode list: current_id + list[{id, name, reserved_soc, scheduling_type(=cloud workMode), electricity_type}]. 'id' is a GATEWAY-SPECIFIC GUID permanently correlated to a scheduling_type (TOU=1, Self=2, Backup=3), so the two identify the same mode - ids are NOT portable between sites. This is also the only usable local read of reserved_soc (the 1405 block reads zeros)."),
     1727: CmdInfo(1727, 1728, "mode_page", "SET active mode: opt=3 + current_id (site-specific id from 1725/1726). ONLY opt=3 is implemented - opt 0,1,2,4,5,6,7 draw no reply at all (swept write-identical 2026-09-11), so there is no hidden opt carrying a reserve write. Reply is {opt,result} with no reason field. Extra fields (reserved_soc/soc/minSoc/selfMinSoc) are accepted with result:0, but that was tested write-identical so it does not prove they are applied. Use CLI subcommand 'mode' (or alias 'mode_page')."),
     1801: CmdInfo(1801, 1802, "battery_inhibit", "Battery charge-inhibit SoC thresholds: topSoc, inhSocNormal, inhSocCold, InhSocExtCold, normalTemp, coldTemp, extColdTemp, startHeatBatTemp, stopHeatBatTemp, batMaxChFactor, delayToChTime, blackStartOnOff, startGenSoc, stopGenSoc, InhUseFlag. CAUTION: on observed firmware the values read back as the sequential integers 0,1,2,...,14 - i.e. field POSITION, not real data. Treat this block as unpopulated until a site is found that returns plausible values."),
@@ -521,6 +521,28 @@ def describe(cmd_type: int) -> str:
 # payload — that is an arbitrary programme/schedule ID (large numbers like 29287
 # or 85232), NOT a run_status key. VPP merely happens to use programme id 9.
 # See docs/PROTOCOL.md and franklinwh-cloud docs/API_COOKBOOK.md.
+#: ``1724`` ``offgridState`` -- what the gateway is actually doing, as distinct from
+#: ``offgridSet``, which is what it was *asked* to do.
+#:
+#: MEASURED from a capture of the official app driving the reference aGate
+#: (IBG_VER V12R02B30D06_260304), 16 request/reply pairs covering a full cycle:
+#:
+#:   offgridSet 0, steady          -> offgridState 2
+#:   write opt:1 offgridSet=1      -> the WRITE REPLY carries offgridState 0
+#:   subsequent reads              -> offgridState 1
+#:   write opt:1 offgridSet=0      -> the WRITE REPLY carries offgridState 0 again
+#:   subsequent reads              -> offgridState 2
+#:
+#: So 0 appears only on the reply to the write itself and reads as "transitioning".
+#: One site, one firmware, one cycle each way -- not a mapping confirmed across
+#: hardware. ``offgridSoc`` held at 5 throughout and was never observed changing.
+OFFGRID_STATE: dict[int, str] = {
+    0: "Transitioning",
+    1: "Off-grid",
+    2: "Grid-connected",
+}
+
+
 RUN_STATUS: dict[int, str] = {
     0: "Standby",
     1: "Charging",

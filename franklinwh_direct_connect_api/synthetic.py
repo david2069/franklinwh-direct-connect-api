@@ -96,6 +96,14 @@ class SyntheticSite:
         # Mode set via 1727 opt:3 pins the operating mode until changed; smart-circuit
         # writes (1409 opt:1) persist per-circuit on/off so a toggle actually sticks.
         self._mode_override_name: str | None = None
+        # Off-grid state, modelled from the capture (see catalog.OFFGRID_STATE):
+        # offgridSet is what the gateway was ASKED to do, offgridState what it is
+        # doing. A write reports state 0 (transitioning); later reads settle to 1
+        # (off-grid) or 2 (grid-connected). Without this the mock answered a 1723
+        # read with a bare result and no fields, so a client could not see an
+        # off-grid write take effect at all.
+        self._offgrid_set = 0
+        self._offgrid_soc = 5
         self._circuits: dict[str, Any] = self._init_circuits()
 
     # -- current mode (write override wins over the time-of-day schedule) -----
@@ -238,6 +246,34 @@ class SyntheticSite:
                 "electricity_type": 0,
             })
         return {"opt": 0, "result": 0, "current_id": MODE_IDS[current], "list": entries}
+
+    # -- 1723 / 1724 off-grid ------------------------------------------------
+    def offgrid(self) -> dict[str, Any]:
+        """1723 opt:0 -> 1724. Steady state: 1 when off-grid, 2 when grid-connected."""
+        return {
+            "opt": 0, "result": 0, "reason": 0,
+            "offgridSet": self._offgrid_set,
+            "offgridSoc": self._offgrid_soc,
+            "offgridState": 1 if self._offgrid_set else 2,
+        }
+
+    def set_offgrid(self, data: dict[str, Any]) -> dict[str, Any]:
+        """1723 opt:1 -> 1724. The reply carries state 0, as the real gateway does.
+
+        Measured: the write reply reports ``offgridState`` 0 whichever direction the
+        change goes, and only the *following* read shows 1 or 2. A mock that settled
+        immediately would let a client miss the transition entirely.
+        """
+        if "offgridSet" in data:
+            self._offgrid_set = 1 if data.get("offgridSet") else 0
+        if "offgridSoc" in data:
+            self._offgrid_soc = int(data["offgridSoc"])
+        return {
+            "opt": 1, "result": 0, "reason": 0,
+            "offgridSet": self._offgrid_set,
+            "offgridSoc": self._offgrid_soc,
+            "offgridState": 0,
+        }
 
     # -- 1102 login manifest -------------------------------------------------
     def login_manifest(self, units: int = 1) -> dict[str, Any]:
