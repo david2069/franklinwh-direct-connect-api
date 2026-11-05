@@ -1,5 +1,14 @@
 # franklinwh-direct-connect-api
 
+[![PyPI](https://img.shields.io/pypi/v/franklinwh-direct-connect-api?label=pypi)](https://pypi.org/project/franklinwh-direct-connect-api/)
+[![Downloads](https://img.shields.io/pypi/dm/franklinwh-direct-connect-api?label=downloads)](https://pypi.org/project/franklinwh-direct-connect-api/)
+[![Python](https://img.shields.io/pypi/pyversions/franklinwh-direct-connect-api?label=python)](https://pypi.org/project/franklinwh-direct-connect-api/)
+[![CI](https://github.com/david2069/franklinwh-direct-connect-api/actions/workflows/ci.yml/badge.svg?event=pull_request)](https://github.com/david2069/franklinwh-direct-connect-api/actions/workflows/ci.yml)
+[![Release](https://github.com/david2069/franklinwh-direct-connect-api/actions/workflows/release.yml/badge.svg)](https://github.com/david2069/franklinwh-direct-connect-api/actions/workflows/release.yml)
+[![Docs](https://github.com/david2069/franklinwh-direct-connect-api/actions/workflows/docs.yml/badge.svg)](https://github.com/david2069/franklinwh-direct-connect-api/actions/workflows/docs.yml)
+[![License](https://img.shields.io/badge/license-MIT%20%2B%20Additional%20Terms-blue)](LICENSE)
+[![Commits](https://img.shields.io/github/commit-activity/m/david2069/franklinwh-direct-connect-api?label=commits)](https://github.com/david2069/franklinwh-direct-connect-api/commits/main)
+
 This library is a **proof-of-concept demonstration** of how to talk to a FranklinWH aGate
 gateway over the (undocumented, unofficial) **FranklinWH Direct Connect** local API — the
 JSON `cmdType` frames exchanged over **TCP/9000**. It is the lower-level device↔broker
