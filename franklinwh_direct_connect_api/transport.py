@@ -335,6 +335,6 @@ class DirectConnectTransport:
         return resp
 
 
-#: Pre-0.4.0 name. Same object; scheduled for removal in 0.6.0 (was dated 0.5.0, which
+#: Pre-0.4.0 name. Same object; scheduled for removal in 0.7.0 (was dated 0.5.0, which
 #: shipped with the alias still present).
 LocalTransport = DirectConnectTransport

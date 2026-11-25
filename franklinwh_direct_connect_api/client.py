@@ -797,6 +797,6 @@ class DirectConnectClient:
 
 
 #: Pre-0.4.0 name. Same object, so ``isinstance`` and subclassing are unaffected.
-#: Scheduled for removal in 0.6.0 together with the ``franklinwh_local`` alias package
-#: (was dated 0.5.0, which shipped with both still present).
+#: Scheduled for removal in 0.7.0 together with the ``franklinwh_local`` alias package
+#: (dated 0.5.0, then 0.6.0; both shipped with it still present).
 LocalClient = DirectConnectClient

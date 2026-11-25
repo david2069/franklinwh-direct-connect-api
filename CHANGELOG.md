@@ -6,6 +6,18 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The deprecation warning told 0.6.0 users the alias would be removed in 0.6.0.** It is
+  still present — deliberately, since removing it would have delayed a release two sessions
+  were blocked on — but the warning text, the shim docstring, `pyproject.toml`, the README
+  and the `LocalClient`/`LocalTransport` comments all still named 0.6.0. A user on 0.6.0
+  importing `franklinwh_local` was told it would go in the version they were already
+  running.
+
+  Now **0.7.0**, in all nine places, each recording that the date has slipped **twice**
+  (0.5.0, then 0.6.0) rather than presenting a fresh number with no history.
+
 ## [0.6.0] — 2026-11-03
 
 ### Upgrade notes
