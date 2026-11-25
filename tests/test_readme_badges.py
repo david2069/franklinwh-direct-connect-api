@@ -8,8 +8,12 @@ CI the moment a workflow is renamed or the distribution name changes.
 from __future__ import annotations
 
 import re
-import tomllib
 from pathlib import Path
+
+try:                                  # tomllib is stdlib only from 3.11
+    import tomllib
+except ModuleNotFoundError:           # pragma: no cover - exercised on 3.10 CI
+    tomllib = None
 
 ROOT = Path(__file__).resolve().parent.parent
 README = (ROOT / "README.md").read_text()
@@ -40,8 +44,13 @@ def test_every_workflow_has_a_badge():
 
 
 def test_pypi_badges_name_the_real_distribution():
-    with (ROOT / "pyproject.toml").open("rb") as fh:
-        dist = tomllib.load(fh)["project"]["name"]
+    raw = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    if tomllib is not None:
+        dist = tomllib.loads(raw)["project"]["name"]
+    else:  # same 3.10 fallback as test_version.py
+        match = re.search(r'^name\s*=\s*"([^"]+)"', raw, re.MULTILINE)
+        assert match, "no name found in pyproject.toml"
+        dist = match.group(1)
     for kind in ("pypi/v", "pypi/dm", "pypi/pyversions"):
         assert f"img.shields.io/{kind}/{dist}" in README, (
             f"{kind} badge missing or names the wrong distribution (expected {dist})")
