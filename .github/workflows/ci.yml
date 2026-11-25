@@ -1,8 +1,10 @@
 name: CI
 
 on:
-  # push trigger muted 2026-09-20 while the Actions budget is $0 (resets 2026-10-01).
-  # Restore `push: {branches: [main]}` after the reset to re-enable push CI.
+  # Push CI was muted 2026-09-20 on a $0 Actions budget and restored 2026-11-25:
+  # the repo is public, and standard GitHub-hosted runners are free for public repos.
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

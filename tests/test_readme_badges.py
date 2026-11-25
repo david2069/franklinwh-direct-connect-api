@@ -57,12 +57,11 @@ def test_the_licence_badge_is_a_fixed_label_not_a_github_lookup():
     assert "](LICENSE)" in BADGES, "the licence badge must link to the licence itself"
 
 
-def test_the_ci_badge_reports_pull_request_runs():
-    """`ci.yml`'s push trigger is muted, so the default badge shows the last run on
-    main -- a failure from 2026-09-19, frozen there ever since. Pinning the badge to
-    `event=pull_request` makes it report the runs that actually happen.
-
-    If the push trigger is restored, drop the `?event=` and delete this test."""
+def test_the_ci_badge_matches_the_push_trigger():
+    """The CI badge must report runs that actually happen. With push CI on (restored
+    2026-11-25) the default badge shows main's latest run, so it must not be pinned.
+    If push CI is ever muted again, the default badge freezes on main's last run, so
+    it must be pinned to `event=pull_request`. This test enforces whichever applies."""
     import re
     from pathlib import Path
     ci = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "ci.yml"
