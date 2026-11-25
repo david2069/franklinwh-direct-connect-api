@@ -6,6 +6,8 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-11-26
+
 ### Fixed
 
 - **The deprecation warning told 0.6.0 users the alias would be removed in 0.6.0.** It is
