@@ -6,6 +6,8 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.2] — 2026-11-27
+
 ### Security
 
 - **A redacted wire log no longer contains the gateway's MAC addresses and LAN IPs.**
