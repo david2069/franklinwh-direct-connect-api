@@ -11,15 +11,22 @@ Status: `queued` → `planned` → `in-progress` → `done`.
 
 A read-only audit on 2026-11-26 checked the docs and catalog at `origin/main` a99b9e1 against the code and against `franklinwh-cloud` at `origin/main` 26cccd2. The audit was run by a subagent; the items marked "checked" were also re-read by this session.
 
-**1. Reserve SoC: the evidence in this repo disagrees with itself (checked).**
-- `catalog.py:119` (1405) says writing all 9 fields "applies (proven 2026-09-14)".
-- `catalog.py:498-500` says the local write is "silently DISCARDED", "reserve is cloud-only. Do NOT expose", and the "full-block 1727 test still pending".
-- This file's 2026-09-11 test (`IBG_VER V12R02B30D06_260304`) wrote the full 9-field 1405 block. The reply echoed `selfMinSoc:12`; the read-back stayed 0.
-- `DEF-RESERVED-SOC-PARTIAL-FRAME` is marked RESOLVED: "NOT a local capability (by design) (2026-07-15)".
-- The docs call reserve "cloud-owned" or "cloud-only" with no date: `PROTOCOL.md:193`, `:201-216`, `USAGE.md`, `CLOUD_MAPPING.md:132`, `:356`.
+**1. Reserve SoC: the docs say "impossible" where the evidence says "not found yet" (checked).**
+- **This is not an internal contradiction.** The audit reported one; this session re-read the entries and that was wrong.
+- `catalog.py:119`: a full 9-field 1405 write is accepted, but the eight min/max fields read 0 and stay 0. Only `BBBackupSoc` holds a value. The per-mode reserves (1725/1726 `reserved_soc`) have no local write path; the cloud sets them via `tou/updateSocV2`.
+- That matches this file's 2026-09-11 test (`IBG_VER V12R02B30D06_260304`): the full 1405 block echoed `selfMinSoc:12`, and the read-back stayed 0.
+- **Gaps:**
+  - "applies" in `catalog.py:119` is ambiguous: the frame is accepted, but the fields that matter do not change.
+  - "proven 2026-09-14" has no record in this repo. It points to the Bridge's `RESEARCH-RESERVE-SOC`.
+  - `catalog.py:498-500` still says "full-block 1727 test still pending".
+  - The docs call reserve "cloud-owned" or "cloud-only" with no date or firmware: `PROTOCOL.md:193`, `:201-216`, `USAGE.md`, `CLOUD_MAPPING.md:132`, `:356`.
 - The owner treats a native local reserve write as open research.
 
-**Fix:** reconcile the 09-11 and 09-14 entries by reading their raw records. Then word every reserve claim as "no working local write found as of <date>, firmware <X>; research open", not as impossible. Leave the CHANGELOG history alone.
+**Fix:**
+- Word each reserve claim as "no working local write found as of <date>, firmware <X>; research open".
+- Say "accepted, not applied" where that is what was measured.
+- Cite the 2026-09-14 record once it is located.
+- Leave the CHANGELOG history alone.
 
 **2. The cloud reserve call is named wrongly (checked).** `PROTOCOL.md:215` and `CLOUD_MAPPING.md:132` and `:356` say `PATCH mode/reserve`. `franklinwh-cloud` `mixins/modes.py:467` @26cccd2 posts to `hes-gateway/terminal/tou/updateSocV2`.
 
