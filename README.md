@@ -296,7 +296,7 @@ The aGate exposes TCP/9000 on its **own WiFi hotspot** — the same "Direct
 Connect" path the FranklinWH mobile app uses. To talk to it:
 
 1. On the gateway/app, start **Direct Connect → Connect via aGate hotspot**.
-2. Join the WiFi network `AP_<serial-suffix>` (e.g. `AP_F24170091`).
+2. Join the WiFi network `AP_<serial-suffix>`.
 3. The gateway is the hotspot gateway IP (typically `10.100.1.1`). Point
    `DirectConnectClient` / the CLI at it, or let the scanner find it:
 

@@ -46,7 +46,7 @@ A read-only audit on 2026-11-26 checked the docs and catalog at `origin/main` a9
 **5. Vendor citation without a revision:** `PROTOCOL.md:215`, "SPAN PICS also notes…".
 
 **6. Possible PII, the owner's decision.**
-- `PROTOCOL.md:8` and `USAGE.md:99` give `AP_F24170091` as an example hotspot SSID. It has been public since 2026-10-03. It does not match the aPower serial in the 2026-11-26 reads; it has not been checked against the aGate serial.
+- `PROTOCOL.md:8` and `USAGE.md:99` gave a real hotspot SSID as an example (owner confirmed, 2026-11-26). Removed from the current docs; it remains in git history since 2026-10-03, which the owner accepts. It does not match the aPower serial in the 2026-11-26 reads; it has not been checked against the aGate serial.
 - `PROTOCOL.md:10` gives the phone's hotspot-subnet IP from a capture.
 
 **7. Undated history (checked).** Dated readings in this repo go back to 2026-05-29. The first one tagged with Direct Connect firmware is 2026-07-29 (`V12R02B30D06`). Readings before that have no firmware recorded. No doc should imply that B30D06 is the oldest firmware this library has run against.

@@ -5,7 +5,7 @@ Reverse-engineered from packet captures of an aGate X (gateway serial
 **TCP/9000**, which is distinct from the cloud `sendMqtt` REST relay.
 
 **Connection model.** The aGate broadcasts its own WiFi hotspot (SSID
-`AP_<serial-suffix>`, e.g. `AP_F24170091`) and listens on TCP/9000 there. The
+`AP_<serial-suffix>`) and listens on TCP/9000 there. The
 mobile app joins the hotspot and connects to the gateway's AP-side IP
 (`10.100.1.1` in the capture) on 9000. In the capture the client `10.100.1.81`
 is the **phone** and `10.100.1.1:9000` is the **aGate**; this library plays the
