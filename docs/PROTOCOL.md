@@ -5,7 +5,7 @@ Reverse-engineered from packet captures of an aGate X (gateway serial
 **TCP/9000**, which is distinct from the cloud `sendMqtt` REST relay.
 
 **Connection model.** The aGate broadcasts its own WiFi hotspot (SSID
-`AP_<serial-suffix>`, e.g. `AP_F24170091`) and listens on TCP/9000 there. The
+`AP_<serial-suffix>`) and listens on TCP/9000 there. The
 mobile app joins the hotspot and connects to the gateway's AP-side IP
 (`10.100.1.1` in the capture) on 9000. In the capture the client `10.100.1.81`
 is the **phone** and `10.100.1.1:9000` is the **aGate**; this library plays the
@@ -190,7 +190,7 @@ verify at the interface/service level, polling over a short window, not once.
 | Smart circuit on/off | `1409` | **Immediate** |
 | **SunSpec Modbus** (`sunsMdEn`) | `1205` | **Delayed (~seconds), firmware-dependent.** On FW `V12R02B30D06` it applies a few seconds after the write in *both* directions (no reboot); on older firmware OFF was immediate and **ON required a reboot** to bind `:502`. Verify by polling `:502`; use a reboot only if it doesn't converge. |
 | IEEE 2030.5 enable | `1205` | On **registration** with a 2030.5/DERMS server (`status2030_5`/`lfdi`), not on the flag write. |
-| Reserved SoC | `1405` | **N/A locally** — silently discarded (cloud-only); see below. |
+| Reserved SoC | `1405` | **No working local write found** — acknowledged and not persisted; research open. See below. |
 
 > ⚠ **Some settings require a reboot to take effect** (historically the Modbus toggle on
 > older firmware; possibly others not yet characterised). A reboot (`1721`) is
@@ -199,21 +199,21 @@ verify at the interface/service level, polling over a short window, not once.
 > See `DEF-WIFI-RECONNECT` in [`BACKLOG.md`](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/BACKLOG.md).
 
 > **Reserved SoC `1405` is withheld** (not exposed as a command) — silently discarded
-> locally (`result:0` but not persisted); reserve is cloud-only. See below and
+> locally (`result:0` but not persisted); set it via the cloud until a local path is found. See below and
 > [`PROTOCOL_DESIGN_REQUIREMENTS.md`](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/PROTOCOL_DESIGN_REQUIREMENTS.md).
 
 > Not everything goes local: some settings (e.g. the smart-circuit **SoC cut-off**)
 > returned "System Busy — try again later" over the broker, i.e. they still round-
 > trip through the cloud. Mode / off-grid / circuit toggles complete locally.
 >
-> **Reserved SoC is CLOUD-OWNED — read-only locally (confirmed 2026-07-29).** The per-mode
-> reserve appears only as a *read* field (`1726 reserved_soc`); local writes
-> (`1405`/`1725`/`1727`, partial or full-block) ACK `result:0` but are discarded. Proof:
-> setting a reserve via the FranklinWH **cloud** API changed the **local** `1726` value
-> within ~8 s (cloud→aGate sync) — the aGate holds a read-only cache the cloud is
-> authoritative for. **Set reserves via the cloud** (`franklinwh-cloud` `update_soc` /
-> `PATCH …/mode/reserve`); read them locally with `mode --list`. (SPAN PICS also notes the
-> reserve **resets on mode change** — consistent with a cloud-synced value.)
+> **Reserved SoC: no working local write found; research open (first recorded 2026-07-29).** The per-mode
+> reserve appears only as a *read* field (`1726 reserved_soc`). Local writes tried
+> (`1405`/`1725`/`1727`) ACK `result:0` but did not persist; the one dated full-block test
+> with firmware recorded is `1405` on 2026-09-11, `V12R02B30D06`. Setting a
+> reserve via the FranklinWH **cloud** API changed the **local** `1726` value within ~8 s
+> (2026-07-29/30). **Set reserves via the cloud** (`franklinwh-cloud` `update_soc` /
+> `POST hes-gateway/terminal/tou/updateSocV2`); read them locally with `mode --list`. (A SPAN PICS, revision not recorded, was cited as noting the
+> reserve **resets on mode change**.)
 
 #### Mode identity differs by channel — resolve by name
 

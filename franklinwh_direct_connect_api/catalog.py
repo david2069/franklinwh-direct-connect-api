@@ -116,7 +116,7 @@ CATALOG: dict[int, CmdInfo] = {
     1301: CmdInfo(1301, 1302, "power_flow", "Live power flow: run_status, mode (programme id), p_uti/p_sun/p_gen/p_fhp/p_load, soc, t_amb, daily kWh. On V12R02B60D00 also v2lModeEnable/v2lRunState (see 1901)."),
     1401: CmdInfo(1401, 1402, "smart_circuit_schedule", "MISLEADING NAME - NOT the schedule source. Declares swXMode, swXAtuoEn, swXFreq, swXTimeEn[], swXTimeSet[], swXTime[] for X=1..3, but on observed firmware every field reads back zero/empty while 1409 carries the REAL populated schedule, and the response includes a bogus sw4 block whose integers are ASCII bytes read as int32 (e.g. swFreq 809119792) - an unpopulated struct serialised by index. Writes are REFUSED: result:1 reason:-2 (tested 2026-09-14). Use 1409 to READ the schedule; it cannot be written at all (see DISCARDED_WRITES)."),
     1403: CmdInfo(1403, 1404, "mode_config", "Active mode config: runingMode (programme id), modeChoose, name, electricity_type [cloud: get_mode()]"),
-    1405: CmdInfo(1405, 1406, "mode_soc", "Per-mode min/max SoC block (9 fields). WRITABLE but FULL-BLOCK ONLY: a partial frame is refused (result:1 reason:-2); echoing all 9 fields with opt:1 applies (proven 2026-09-14). The eight min/max fields are INERT: they read 0 and stay 0 even in an applied write, and even when written as VALID pairs (min 0 / max 100, matching the cloud) - tested 2026-09-14. Only BBBackupSoc holds a value. Live per-mode reserves are in mode_list (1725/1726) 'reserved_soc' and match the cloud exactly, but have NO local write path: the cloud sets them via REST tou/updateSocV2, not sendMqtt. See bridge BACKLOG RESEARCH-RESERVE-SOC. [cloud: get_all_mode_soc() / update_soc()]"),
+    1405: CmdInfo(1405, 1406, "mode_soc", "Per-mode min/max SoC block (9 fields). WRITABLE but FULL-BLOCK ONLY: a partial frame is refused (result:1 reason:-2); a full 9-field opt:1 write is ACCEPTED, but the eight min/max fields are INERT: they read 0 and stay 0 (2026-09-11, V12R02B30D06: selfMinSoc written 12, read back 0). BBBackupSoc 20->25->20 with read-back is stated for 2026-09-14 in a test docstring only - no raw record, no firmware. Live per-mode reserves are in mode_list (1725/1726) 'reserved_soc' and match the cloud exactly, and no working local write has been found (research open): the cloud sets them via REST tou/updateSocV2, not sendMqtt. See bridge BACKLOG RESEARCH-RESERVE-SOC. [cloud: get_all_mode_soc() / update_soc()]"),
     1407: CmdInfo(1407, 1408, "tou_schedule", "TOU schedule: touStrategy, workdayLv, workdayFlag[], weekendLv, weekendFlag[] [cloud: get_gateway_tou_list()]"),
     1409: CmdInfo(1409, 1410, "smart_circuits", "Smart-circuit config: SwMerge, SwXName, SwXMode, SwXProLoad ... (write via 'call 1409 --data {opt:1,...}' or cloud cmdType 310; no --set flag on the smart_circuits subcommand)"),
     1411: CmdInfo(1411, 1412, "smart_circuit_meter", "Smart-circuit live metering: SwXVolt/Curr, SWXExpPower/Energy, CarSW* (EV charger)"),
@@ -493,11 +493,11 @@ def read_payload(cmd: int) -> dict:
 UNVERIFIED_WRITES: dict[str, dict] = {
     "set_mode_soc": {
         "cmd": 1405, "opt": 1,
-        "proven": "full-block only; partial frames refused result:1 reason:-2. Applies for "
-                  "BBBackupSoc; the eight min/max fields are inert (stay 0).",
-        "note": "Reserved SoC: local write is silently DISCARDED (result:0 but not "
-                "persisted) — reserve is cloud-only. Do NOT expose. See "
-                "DEF-RESERVED-SOC-RESEARCH (full-block 1727 test still pending).",
+        "proven": "full-block only; partial frames refused result:1 reason:-2. Full block "
+                  "accepted; min/max fields read back unchanged (2026-09-11, V12R02B30D06).",
+        "note": "Reserved SoC: no working local write found — writes are acknowledged "
+                "(result:0) and not persisted. Not exposed while research is open. See "
+                "DEF-RESERVED-SOC-RESEARCH.",
     },
 }
 

@@ -96,7 +96,7 @@ The aGate exposes the protocol on **TCP/9000 on its own WiFi hotspot** — the s
 "Direct Connect → Connect via aGate hotspot" path the FranklinWH mobile app uses.
 
 1. In the FranklinWH app, open **Direct Connect** and note the hotspot name,
-   `AP_<serial-suffix>` (e.g. `AP_F24170091`).
+   `AP_<serial-suffix>`.
 2. On your computer, **join that WiFi network**.
 3. The gateway is the hotspot's gateway IP — typically `10.100.1.1`. Confirm/find
    it with the scanner:
@@ -149,8 +149,8 @@ per catalogued cmdType, generated from the catalog so the two cannot drift. Run
 > | `offgrid --set` | **nothing** — it prints the aGate's `result`/`reason` only. Re-run `offgrid` to confirm it took |
 > | `call … --data` | nothing at all |
 >
-> Reserved SoC (`1405`) is deliberately **not exposed** as a write: the aGate accepts it
-> and silently discards it, because the cloud owns that value (see
+> Reserved SoC (`1405`) is deliberately **not exposed** as a write: the aGate acknowledges it
+> and the value does not persist; no working local write has been found (see
 > [PROTOCOL.md](PROTOCOL.md) and [CLOUD_MAPPING §3](CLOUD_MAPPING.md)).
 
 ### Offline (no hardware)
@@ -226,7 +226,7 @@ franklinwh-direct-connect --host 10.100.1.1 call 1723 --data '{"opt":1,"offgridS
 
 > Enabling **IEEE 2030.5 / SEP2** (`--set-2030-5 on`) hands battery dispatch to a DERMS
 > server and prompts to confirm. Reserved-SoC (`1405`) remains **withheld** — it is
-> silently discarded locally (cloud-only). See [PROTOCOL_DESIGN_REQUIREMENTS.md](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/PROTOCOL_DESIGN_REQUIREMENTS.md).
+> acknowledged and not persisted locally (no working local write found; set it via the cloud). See [PROTOCOL_DESIGN_REQUIREMENTS.md](https://github.com/david2069/franklinwh-direct-connect-api/blob/main/PROTOCOL_DESIGN_REQUIREMENTS.md).
 
 ### Watch / polling
 
@@ -302,7 +302,7 @@ assert frame.verify()                # len + crc check
 
 ### Writes from the library
 
-The CLI exposes four writes; the library exposes more. `franklinwh_direct_connect_api.WRITES`
+The CLI exposes some of these writes; the library exposes all of them. `franklinwh_direct_connect_api.WRITES`
 is the machine-readable table (cmdType, `opt`, the fields each touches, and the note on
 how it was confirmed) — print it rather than trusting a summary.
 
@@ -314,8 +314,9 @@ how it was confirmed) — print it rather than trusting a summary.
 | `set_generator(**changes)`, `set_generator_window`, `set_generator_exercise`, `set_generator_soc` | 1901 `opt:1` | full-block RMW, then re-reads every requested field | Hardware-verified 2026-09-14 (FW `V12R02B30D06`) |
 | `set_der_comms(sunspec_modbus=…, sep2=…)` | 1205 `opt:1` | **does not self-verify** — confirm at the service level (`:502`, or `status2030_5`/`lfdi`) | Delayed apply, firmware-dependent |
 | `set_circuit_schedule(circuit, slots, enabled)` | 1409 `opt:1` | re-reads, and sets `discarded` when the write was accepted but changed nothing | **Known no-op** on FW `V12R02B30D06` — the gateway ACKs and ignores it |
+| `set_debug_mode(on)` | 1821 `opt:1` | re-reads `enable`; `verified` only on a matching read-back | Write and read-back on one site (V12R02B60D00, 2026-10-23, the Bridge session's reading). **Stops normal battery operation while on** |
 | `reboot()` | 1721 `opt:1` | none in the library; the CLI polls `:9000` | **Destructive** — see the warning below |
-| no method | 1405 | — | Reserved SoC is **cloud-owned**: accepted locally and discarded. Deliberately not exposed |
+| no method | 1405 | — | Reserved SoC: no working local write found (acknowledged, not persisted). Not exposed while research is open |
 
 ```python
 with DirectConnectClient("192.0.2.110") as c:
