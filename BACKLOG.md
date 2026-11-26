@@ -5,6 +5,71 @@ Status: `queued` → `planned` → `in-progress` → `done`.
 
 ---
 
+## DEF-DOCS-STALE-CLAIMS — published docs contradict the code, each other, and the cloud library
+
+**Severity:** S3 (docs; nothing on the wire changes) · **Status:** QUEUED · **Filed:** 2026-11-26 · **Area:** docs
+
+A read-only audit on 2026-11-26 checked the docs and catalog at `origin/main` a99b9e1 against the code and against `franklinwh-cloud` at `origin/main` 26cccd2. The audit was run by a subagent; the items marked "checked" were also re-read by this session.
+
+**1. Reserve SoC: the evidence in this repo disagrees with itself (checked).**
+- `catalog.py:119` (1405) says writing all 9 fields "applies (proven 2026-09-14)".
+- `catalog.py:498-500` says the local write is "silently DISCARDED", "reserve is cloud-only. Do NOT expose", and the "full-block 1727 test still pending".
+- This file's 2026-09-11 test (`IBG_VER V12R02B30D06_260304`) wrote the full 9-field 1405 block. The reply echoed `selfMinSoc:12`; the read-back stayed 0.
+- `DEF-RESERVED-SOC-PARTIAL-FRAME` is marked RESOLVED: "NOT a local capability (by design) (2026-07-15)".
+- The docs call reserve "cloud-owned" or "cloud-only" with no date: `PROTOCOL.md:193`, `:201-216`, `USAGE.md`, `CLOUD_MAPPING.md:132`, `:356`.
+- The owner treats a native local reserve write as open research.
+
+**Fix:** reconcile the 09-11 and 09-14 entries by reading their raw records. Then word every reserve claim as "no working local write found as of <date>, firmware <X>; research open", not as impossible. Leave the CHANGELOG history alone.
+
+**2. The cloud reserve call is named wrongly (checked).** `PROTOCOL.md:215` and `CLOUD_MAPPING.md:132` and `:356` say `PATCH mode/reserve`. `franklinwh-cloud` `mixins/modes.py:467` @26cccd2 posts to `hes-gateway/terminal/tou/updateSocV2`.
+
+**3. Debug Mode is stale.**
+- `CLOUD_MAPPING.md:99` lists 1821 as "UNCONFIRMED, purpose unknown" (checked). `catalog.py:141` names 1821 `debug_mode`, and `set_debug_mode` shipped in 0.5.1.
+- Reported by the audit, not re-checked:
+  - `CLOUD_MAPPING.md:165` has the same stale label;
+  - `USAGE.md:303-318` ("four writes") leaves out `set_debug_mode`;
+  - `README.md:497` says "six writes".
+
+**4. Cloud-only claims that the code contradicts (audit, not re-checked).**
+- `CLOUD_MAPPING.md:80` calls the import/export caps cloud-only. They are readable in 1701; the write is unverified.
+- `CLOUD_MAPPING.md:205` lists no local week/month/year figures, but `energy_rollup()` computes them within the roughly 105-day window.
+- `CLOUD_MAPPING.md:78` (VPP) should add that VPP state is readable via 1707 `ibgRunStatus == 9`.
+- Generator: the cloud has `kwhGenLoad` / `kwhGenLoadArray` (`franklinwh-cloud` `docs/GENERATOR_V2L_API.md:338`). Our docs do not say which generator energy figures are local and which are cloud-only.
+
+**5. Vendor citation without a revision:** `PROTOCOL.md:215`, "SPAN PICS also notes…".
+
+**6. Possible PII, the owner's decision.**
+- `PROTOCOL.md:8` and `USAGE.md:99` give `AP_F24170091` as an example hotspot SSID. It has been public since 2026-10-03. It does not match the aPower serial in the 2026-11-26 reads; it has not been checked against the aGate serial.
+- `PROTOCOL.md:10` gives the phone's hotspot-subnet IP from a capture.
+
+**7. Undated history (checked).** Dated readings in this repo go back to 2026-05-29. The first one tagged with Direct Connect firmware is 2026-07-29 (`V12R02B30D06`). Readings before that have no firmware recorded. No doc should imply that B30D06 is the oldest firmware this library has run against.
+
+**Regression risk:** low (docs and catalog strings). Reserve wording needs the owner's review, because the research is live.
+
+---
+
+## FEAT-FW-CAPABILITIES — API and CLI report what this firmware actually returns
+
+**Severity:** S3 · **Status:** QUEUED · **Filed:** 2026-11-26 · **Area:** client commands, CLI
+
+The owner's request: "We need the api and cli to adapt to capabilities of each firmware". Key sets already differ by firmware: 1102 gained 4 keys and 1701 gained `gridImportLimit` between B30D06 and B60D00, and 1901 and 1301 carry the V2L keys on B60D00.
+
+**Design: detect from the keys returned, not from a version table.** Version tables go stale, and firmware before 2026-07-29 is unrecorded (DEF-DOCS-STALE-CLAIMS item 7).
+
+- `client.accessories()` returns:
+  - `generator`: `enabled` (`genEn == 1`), `mode` ("auto" or "manual", else the raw value), `start_control` ("voltage_sense", "ats" or "dry_contact", else raw), `status_raw`.
+  - `v2l`: `supported` (the keys are present), `enabled` (a bool, or `None` when the keys are absent: "not reported" is not "off"), `run_state_raw`, `car_rated_power_w`.
+  - `source`: `IBG_VER`, `protocolVer`, and the cmdType each value came from.
+- Unmapped values are returned raw. The library does not enforce the generator/V2L exclusion; the gateway does.
+- CLI:
+  - `capabilities` lists the optional key groups present;
+  - `generator` shows a V2L section, or "not reported by this firmware (<IBG_VER>)".
+- Writes stay limited to key sets verified on hardware.
+
+**Evidence base:** one site, B60D00, 2026-11-26 (`docs/FIRMWARE_MAP.md` §6, PR #48). Measurement fields have no established meaning. **Regression risk:** medium (additive API).
+
+---
+
 ## DEF-VERSION-DRIFT — `__version__` says 0.4.0 while the distribution is 0.5.0
 
 **Severity:** S2 (wrong value reported, no workaround in-process) · **Status:** QUEUED · **Filed:** 2026-10-31 · **Area:** packaging
