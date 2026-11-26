@@ -147,6 +147,71 @@ firmwares advanced. Everything else is unobserved.**
 
 ---
 
+## 6. Generator and V2L setting keys (`1901`, `1301`) — later firmware only
+
+**Scope: one site, `V12R02B60D00_260924`, 2026-11-26.** The owner changed one setting at a
+time in the official app, and a read-only `1901` + `1301` read was taken after each change.
+**No generator module is fitted and no vehicle is connected.** The app's "installed"
+switches set flags; they do not prove the hardware is there.
+
+### Setting keys that moved with an app action
+
+| Key | App action | Values seen | Times |
+|---|---|---|---|
+| `1901 genEn` | Generator installed on / off | 1 / 0 | several |
+| `1901 mode` | Generator mode | 1 = Auto Schedule, 2 = Manual | 3 |
+| `1901 gridVoltCheck` | Start control type | 1 = Voltage Sense (2), 2 = ATS (1), 3 = Dry Contact (1) | 4 |
+| `1901 genStartElec`, `genCloseElec` | Start / stop SoC | matched the app exactly | several |
+| `1901 charge2En`, `charge2StartTime`, `charge2EndTime` | Second charge window | matched the app exactly | 1 |
+| `1901 v2LModeEnable`, `1301 v2lModeEnable` | V2L installed on / off | 1 / 0 | several |
+| `1901 v2LRunState`, `1301 v2lRunState` | (no separate control) | moved with `v2LModeEnable` every time | several |
+| `1901 v2LCarRatedPower` | Vehicle chosen in the app | 6000 with a custom vehicle, 3300 with a listed one; kept after V2L was removed | 2 |
+
+- **Enabling V2L set `genEn` to 0**, seen twice. The app warns "Enabling will shut off the
+  generator". This library does not enforce that exclusion; the gateway did it.
+- Generator settings (mode, thresholds, windows) **were kept while the generator was
+  disabled**.
+- `gridVoltCheck` is a name, not a meaning: on this firmware it carries the start-control
+  type, not a yes/no voltage check.
+- **Not mapped:** `v2lChargeEna` (the app's "allow charging to aPower" is the obvious
+  candidate; not tested), `v2LModeCtrl`, `v2LStartTimeout`, `v2lAccessMethod`,
+  `v2lOutVoltLevel`, and what `v2LRunState` reports that `v2LModeEnable` does not.
+
+### Measurement fields — no meaning established
+
+With no generator or vehicle fitted, these fields carry no evidence of what they mean. They
+are listed so nobody reads them as mapped: `1901 curr`, `volt`, `freq`, `power`,
+`genpowerGen`, `genStat`; `1301 p_gen`, `kwh_gen`, `genStat`.
+
+### Key set
+
+`1901` on this firmware returned 42 keys, including `mode`, `curr`, `volt`, `freq`,
+`power`, `genpowerGen` and seven `v2L*`/`v2l*` keys. `1301` carries `v2lModeEnable` and
+`v2lRunState`. **The earlier firmware's `1902` has not been compared yet** — the earlier
+capture holds one, but it has not been read for these keys, so nothing here says when they
+appeared.
+
+### Vendor documents, and where they differ from the app
+
+- *Integrating Standalone Generators with the Franklin Home Power System*, FranklinWH, PDF
+  (no revision printed; file metadata created 2024-03-19, modified 2025-08-29). It lists
+  three automatic control methods — two-wire dry contact, utility voltage sensing, ATS —
+  which match the three `gridVoltCheck` values above. It says the generator "only operates
+  when there is a grid outage". It does not mention V2L.
+- *Vehicle to Load*, franklinwh.com AU support page (no date or revision shown, read
+  2026-11-26). It lists only aGate 1.3 / 1.3.1 **US** SKUs as supported, and says nothing
+  about a generator module. **The app on this AU gateway offered V2L anyway, and states "a
+  Generator module must be fitted to the aGate for V2L to work".** The two disagree; neither
+  has been tested with hardware here.
+
+### Writing `1901`
+
+`set_generator*` writes the whole block (`opt:1`). On this firmware a write that leaves out
+the V2L keys was applied and did not reset them: `genStartElec` 20 → 21 → 20, read back
+each time, V2L keys unchanged (2026-11-26, one site).
+
+---
+
 *Evidence: a packet capture of the official app against the reference aGate
 (`V12R02B30D06_260304`), and an owner-approved read-only login on 2026-10-31
 (`V12R02B60D00_260924`). No serials, no site identifiers. The capture became readable only
