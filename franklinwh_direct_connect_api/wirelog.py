@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import json
 import os
+import re as _re
 import threading
 import time
 from pathlib import Path
@@ -147,8 +148,25 @@ def _is_sensitive(key: str) -> bool:
         return True
     if any(pat in low for pat in SENSITIVE_PATTERNS):
         return True
-    tokens = {t for t in low.replace("-", "_").split("_") if t}
-    return bool(tokens & SENSITIVE_TOKENS)
+    return bool(_tokens(key) & SENSITIVE_TOKENS)
+
+
+def _tokens(key: str) -> set[str]:
+    """Split a field name into lower-cased words, on ``_``/``-`` AND on camelCase.
+
+    1117 spells its network fields in camelCase (``eth0StaticIP``, ``wifiMAC``,
+    ``eth0GateWay``); splitting on ``_`` alone left them as one token each, so a
+    "redacted" log carried the site's MACs and LAN IPs (DEF-WIRELOG-CAMELCASE-NETWORK).
+    ``eth0StaticIP`` -> ``eth``, ``0``, ``static``, ``ip``. Whole tokens still, so
+    ``clipping`` and ``machine`` stay readable.
+    """
+    words = _re.findall(r"[A-Z]+(?=[A-Z][a-z]|[0-9]|$)|[A-Z]?[a-z]+|[A-Z]+|[0-9]+",
+                        key.replace("-", "_"))
+    toks = {w.lower() for w in words}
+    # Vendor splits single words across a capital ("GateWay"): rejoin neighbours too.
+    low = [w.lower() for w in words]
+    toks |= {a + b for a, b in zip(low, low[1:])}
+    return toks
 
 
 def redact(value: Any, *, _key: str = "") -> Any:

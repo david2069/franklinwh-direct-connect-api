@@ -6,6 +6,16 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- **A redacted wire log no longer contains the gateway's MAC addresses and LAN IPs.**
+  `--wire-log-redact` matched short field names like `mac` and `ip` only when separated
+  by `_`, but the network-interfaces reply (1117) names them in camelCase (`eth0MAC`,
+  `wifiStaticIP`, `eth0GateWay`, `operatorDNS`, …). Those 14 fields were written in clear
+  to a log documented as safe to share. They are now redacted; no other field changes.
+  If you have shared a redacted log that includes a 1117 reply, it carried those
+  addresses. (DEF-WIRELOG-CAMELCASE-NETWORK)
+
 ### Fixed
 
 - **Changing a generator setting no longer rewrites the aGate's V2L settings.**
