@@ -63,7 +63,7 @@ exhaustive local sweep, not merely unfound.
 | `get_power_details(type=2..5)` — week/month/year/lifetime | — | ⛔ **cloud-side aggregation.** Local `dayType` is echoed but ignored; roll up client-side from `1303` |
 | `get_mode()` / `set_mode()` | `1403 mode_config`, `1725/1727 mode_list/mode_page` | ✅ mapped — **mode switch works locally** |
 | `get_all_mode_soc()` reserve **read** | `1726 mode_list` `reserved_soc` | ✅ mapped (read-only cache). **Use 1726, not 1405** — the 1405 block reads all zeros except `BBBackupSoc` on observed firmware |
-| `update_soc()` reserve **write** | — | ⛔ **cloud-owned.** Local writes ACK `result:0` and are discarded; see §3 and BACKLOG `DEF-RESERVED-SOC-RESEARCH` |
+| `update_soc()` reserve **write** | — | ⛔ **no working local write found** (research open). Local writes ACK `result:0` and do not persist; see §3 and BACKLOG `DEF-RESERVED-SOC-RESEARCH` |
 | `get_gateway_tou_list()` — tariff schedule | `1407 tou_schedule` | ✅ mapped (§3d) |
 | `saveTouDispatch` / `get_tou_dispatch_detail()` — per-block **dispatch** | — | ⛔ **cloud-only, confirmed absent** (§3d) |
 | `get_grid_status()` / `set_grid_status()` | `1723 offgrid` | ✅ mapped — same `offgridSet`/`offgridSoc` field names; **write works locally** |
@@ -77,7 +77,7 @@ exhaustive local sweep, not merely unfound.
 | `get_stats()` `remoteSolar*` | `1903 solar_pv` | ✅ partial |
 | `force_charge()` / `force_discharge()` (VPP) | — | ⛔ cloud-only |
 | `get_backup_history()`, `get_charge_history()` | — | ⛔ cloud-only (server-side records) |
-| `get_power_control_settings()` — import/export caps | — | ⛔ cloud-only |
+| `get_power_control_settings()` — import/export caps | `1701` (read) | Readable locally (`gridSoftLimit`, `gridHardLimit`, `gridExportEnable`, …). Local write unverified; enforcement untested — see PROTOCOL.md |
 | Pricing, tariff plans, utilities, geography, run log, warranty, notifications | — | ⛔ cloud-only (portal/account) |
 | `led_light_settings()` (327) | — | ⛔ cloud-only |
 
@@ -96,7 +96,8 @@ exhaustive local sweep, not merely unfound.
 | `1801 battery_inhibit` | cold-climate charge inhibit, generator start/stop SoC |
 | `1827 ibg_state` | DSP/main state, firmware, uptime, `infiNum`, `peState` |
 | `1829 event_block` | indexed event/data block |
-| `1207`, `1209`, `1821`, `1823`, `1825` | **UNCONFIRMED** — respond, purpose unknown; payloads ignore all selectors tried |
+| `1207`, `1209`, `1823`, `1825` | **UNCONFIRMED** — respond, purpose unknown; payloads ignore all selectors tried |
+| `1821` | **Debug Mode** — `debug_mode()` / `set_debug_mode()`; see the catalog and PROTOCOL.md |
 
 ### 0d. Coverage summary
 
@@ -129,7 +130,7 @@ closes the connection.
 | `1303` | energy_history | `get_power_by_day(dayTime)` / `get_electric_data(type=1)` | daily energy history — see §3c |
 | `1301` | power_flow | `get_stats()` / `get_device_composite_info()` (cmdType 203) | live power/SoC/mode |
 | `1403` | mode_config | `get_mode()` / REST `mode/current` | active mode |
-| `1405` | mode_soc *(read)* | `get_all_mode_soc()` / REST `mode/reserves` | **reserve is cloud-owned — read-only locally** (§3). NB the 1405 block itself reads zeros; the live values are in `1726` |
+| `1405` | mode_soc *(read)* | `get_all_mode_soc()` / REST `mode/reserves` | **no working local reserve write found** (§3). NB the 1405 block itself reads zeros; the live values are in `1726` |
 | `1407` | tou_schedule | `get_gateway_tou_list()` | TOU schedule (read) |
 | `1409` / `1411` | smart_circuits / smart_circuit_meter | `get_smart_circuits_info()` (311) / toggle 310 | smart-circuit config + metering |
 | `1707` | ibg_run_status | `get_runtime_data()` | run status / mode name |
@@ -162,7 +163,7 @@ These are device-level reads/controls the cloud API doesn't surface as a distinc
 | `1829` | event_block | indexed event/data block |
 | `1901` | generator | generator + scheduled grid-charge config |
 | `1903` | solar_pv | solar/PV config |
-| `1207/1209/1821/1823/1825` | unknown_* | UNCONFIRMED (placeholder-value structs; purpose TBD) |
+| `1207/1209/1823/1825` | unknown_* | UNCONFIRMED (placeholder-value structs; purpose TBD) |
 
 ## 3b. Request-shape gotcha: per-device reads need an `id`
 
@@ -202,7 +203,7 @@ Both take the date as **`YYYY-MM-DD`** (local `date`, cloud `dayTime`).
 | granularity | cloud | local |
 |---|---|---|
 | Day | `get_power_by_day(dayTime)` — `api-energy/power/getFhpPowerByDay` | ✅ `1303` — 96 quarter-hour points |
-| Week / Month / Year / Lifetime | `get_power_details(type=2..5)` / `get_electric_data(type)` — `api-energy/electric/getFhpElectricData` | ❌ none |
+| Week / Month / Year / Lifetime | `get_power_details(type=2..5)` / `get_electric_data(type)` — `api-energy/electric/getFhpElectricData` | no gateway call; `energy_rollup()` computes these client-side within the ~105-day window |
 
 Local `1303` carries a `dayType` field, but it is **echoed and ignored** — values 0-5 all
 return the same 96 quarter-hour points (tested on hardware 2026-09-11). So the cloud's
@@ -353,7 +354,7 @@ The cloud API is authoritative for these — there is **no** local sendMqtt writ
 | Capability | Cloud method / REST | Note |
 |-----------|---------------------|------|
 | ~~Per-cell BMS telemetry~~ | ~~`get_bms_info()`~~ | **RESOLVED 2026-09-11 — there IS a local equivalent: `1705 battery_cells`.** Previously listed here because a plain `{"opt":0}` probe returned empty arrays. |
-| **Reserved SoC write** | `update_soc()` / REST `PATCH mode/reserve` | **Cloud-owned.** Local `1726 reserved_soc` is a read-only cache that syncs from the cloud in ~seconds (confirmed 2026-07-30). Local writes (`1405/1725/1727`) are discarded. |
+| **Reserved SoC write** | `update_soc()` / REST `POST hes-gateway/terminal/tou/updateSocV2` | **No working local write found (research open).** A cloud reserve write changed local `1726 reserved_soc` within seconds (2026-07-30). Local writes tried (`1405/1725/1727`) did not persist. |
 | TOU schedule write | `set_tou_schedule()` / REST `schedule/set` | |
 | Force charge / discharge (VPP) | `force_charge()` / `force_discharge()` | VPP-aware |
 | Backup history | `get_backup_history()` / REST `control/backup-history` | |
@@ -366,7 +367,7 @@ The cloud API is authoritative for these — there is **no** local sendMqtt writ
 
 ## 4. Gaps & non-equivalence — summary
 
-- **Reserved SoC** is the headline non-equivalence: cloud-owned; local is read-only (§3).
+- **Reserved SoC** is the headline non-equivalence: no working local write found; local reads it (§3).
 - **Grid-profile name**: cloud resolves a human name; local exposes only the enum id.
 - **Granularity**: one cloud call (e.g. `get_grid_profile_info(2)`) maps to ~14+ local
   cmdTypes; one local read (`power_flow`) is a subset of the cloud `get_stats()` aggregate.

@@ -17,7 +17,7 @@ A read-only audit on 2026-11-26 checked the docs and catalog at `origin/main` a9
 - That matches this file's 2026-09-11 test (`IBG_VER V12R02B30D06_260304`): the full 1405 block echoed `selfMinSoc:12`, and the read-back stayed 0.
 - **Gaps:**
   - "applies" in `catalog.py:119` is ambiguous: the frame is accepted, but the fields that matter do not change.
-  - "proven 2026-09-14" has no record in this repo. It points to the Bridge's `RESEARCH-RESERVE-SOC`.
+  - The "2026-09-14" claim (BBBackupSoc 20->25->20 with read-back) survives only as a test docstring (`tests/test_generator_writes.py`, from the 2026-10-03 initial public release). No raw record or firmware exists. The Bridge session said it holds none either (message, 2026-11-26; not independently checked); its `RESEARCH-RESERVE-SOC` text survives only as index lines.
   - `catalog.py:498-500` still says "full-block 1727 test still pending".
   - The docs call reserve "cloud-owned" or "cloud-only" with no date or firmware: `PROTOCOL.md:193`, `:201-216`, `USAGE.md`, `CLOUD_MAPPING.md:132`, `:356`.
 - The owner treats a native local reserve write as open research.

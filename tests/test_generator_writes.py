@@ -147,8 +147,9 @@ def test_catalog_descriptions_stay_readable():
 def test_1405_is_documented_as_full_block_writable():
     """Corrects the older 'accepted then discarded' note, measured on a partial frame.
 
-    Proven 2026-09-14: partial -> result:1 reason:-2 (refused); full block -> applies
-    (BBBackupSoc 20->25->20 with read-back). The eight min/max fields stay inert.
+    Stated for 2026-09-14 (no raw record or firmware survives; see DEF-DOCS-STALE-CLAIMS):
+    partial -> result:1 reason:-2 (refused); full block -> BBBackupSoc 20->25->20 with
+    read-back. The eight min/max fields stay inert (also 2026-09-11, V12R02B30D06).
     """
     d = catalog.CATALOG[1405].description.lower()
     assert "full-block only" in d
