@@ -6,6 +6,19 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Changing a generator setting no longer rewrites the aGate's V2L settings.**
+  `set_generator()` and its helpers (`set_generator_window`, `set_generator_exercise`,
+  `set_generator_soc`) read the whole 1901 block and wrote all of it back. Firmware
+  V12R02B60D00 added eight V2L keys to that block (`v2LModeEnable`, `v2LModeCtrl`,
+  `v2LRunState`, …), so on that firmware every generator change also wrote the V2L
+  settings back — a write nobody had tested. Only the keys of the block as it was when
+  the write path was hardware-verified (V12R02B30D06, 2026-09-14) are now written; keys
+  a newer firmware adds are read but left alone. The result gains a `withheld` list
+  naming what was left out. On the older firmware the write is unchanged.
+  (DEF-SETGEN-ECHOES-V2L)
+
 ## [0.6.1] — 2026-11-26
 
 ### Fixed
