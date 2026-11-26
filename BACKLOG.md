@@ -75,6 +75,11 @@ B30D06 capture. The read wins; the doc needs correcting.
 value read 0 (`genEn`, `genStat`, `v2lRunState`, `v2LModeCtrl`) on a site with no generator
 and V2L not in use. One site, one firmware, one reading.
 
+**No new cmdTypes.** A read-only gap sweep the same day (12:18-12:24 AEDT, same firmware)
+sent the 335 uncatalogued odd codes in 1101-1909, 11 payload shapes each, `opt` 0 or
+absent only: **335 rejected, 0 responded**, on one connection. The catalog is still
+complete for that band on this firmware. Codes outside 1101-1909 were not swept.
+
 **Fix:** update `docs/FIRMWARE_MAP.md` and the 1301/1901 catalog descriptions. **Regression
 risk:** none.
 
