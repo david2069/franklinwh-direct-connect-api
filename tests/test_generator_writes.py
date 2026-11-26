@@ -58,6 +58,40 @@ def test_whole_block_is_echoed_so_other_windows_survive():
     assert block["opt"] == 1
 
 
+# The eight keys V12R02B60D00 added to the 1902 block, with the values read on the
+# reference aGate on 2026-11-26 (BACKLOG INFO-FW-B60-KEYMAP).
+V2L_B60 = {
+    "v2LModeEnable": 0, "v2LStartTimeout": 300, "v2LCarRatedPower": 5000,
+    "v2LModeCtrl": 0, "v2LRunState": 0, "v2lChargeEna": 1, "v2lAccessMethod": 0,
+    "v2lOutVoltLevel": 0,
+}
+
+
+def test_v2l_keys_are_not_written_back():
+    """DEF-SETGEN-ECHOES-V2L: a generator change must not rewrite the V2L block."""
+    c = FakeGen()
+    c.state.update(V2L_B60)
+    out = c.set_generator_window(2, True, "02:00", "03:30")
+    _, block = c.sent[0]
+    assert not set(V2L_B60) & set(block)
+    assert out["withheld"] == sorted(V2L_B60)
+    assert out["ok"]
+
+
+def test_verified_block_is_still_written_in_full():
+    """On the verified firmware's block the write is unchanged: every key, plus opt."""
+    c = FakeGen()
+    c.set_generator_soc(25, 85)
+    _, block = c.sent[0]
+    expected = set(GEN) - {"opt", "result", "reason"}
+    assert set(block) == expected | {"opt"}
+    assert c.set_generator_soc(25, 85)["withheld"] == []
+
+
+def test_every_writable_field_is_in_the_written_block():
+    assert set(LocalClient.GENERATOR_WRITABLE) <= set(LocalClient.GENERATOR_BLOCK_KEYS)
+
+
 def test_soc_thresholds_validated():
     c = FakeGen()
     assert c.set_generator_soc(25, 85)["ok"]

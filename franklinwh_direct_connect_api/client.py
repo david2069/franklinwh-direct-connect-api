@@ -575,6 +575,21 @@ class DirectConnectClient:
         "charge3En", "charge3StartTime", "charge3EndTime",
     )
 
+    #: The keys :meth:`set_generator` writes back: the 1902 block as it was on
+    #: V12R02B30D06, where this write path was hardware-verified (2026-09-14), less the
+    #: reply envelope. Anything else the firmware adds is read but NOT written back --
+    #: V12R02B60D00 added eight V2L keys (v2LModeEnable, v2LModeCtrl, v2LRunState, ...),
+    #: and writing those back has never been tested (BACKLOG DEF-SETGEN-ECHOES-V2L).
+    GENERATOR_BLOCK_KEYS = (
+        "genEn", "gridVoltCheck", "mode", "genModel", "genRatedPower", "genOptiPPoint",
+        "startDelTime", "genStartElec", "genCloseElec", "genStat", "manuSw", "power",
+        "curr", "volt", "freq", "genpowerGen",
+        "charge1En", "charge1StartTime", "charge1EndTime",
+        "charge2En", "charge2StartTime", "charge2EndTime",
+        "charge3En", "charge3StartTime", "charge3EndTime",
+        "oilmanoEn", "manoFre", "manoDate", "manoStartTime", "manoTime", "manoManExit",
+    )
+
     def set_generator(self, **changes: Any) -> dict[str, Any]:
         """Change generator settings (1901 opt:1) by full-block read-modify-write.
 
@@ -586,15 +601,20 @@ class DirectConnectClient:
         reads back as asked. ``result:0`` alone is NOT treated as success — on this
         firmware some commands accept a frame and silently ignore it.
 
-        Returns ``{ok, result, requested, before, after, confirmed, mismatched}``.
+        Only :attr:`GENERATOR_BLOCK_KEYS` are written back. Keys a newer firmware adds
+        (the V2L block on V12R02B60D00) are left out of the write and listed in
+        ``withheld``, so changing a generator setting never rewrites them.
+
+        Returns ``{ok, result, requested, before, after, confirmed, mismatched, withheld}``.
         """
         unknown = set(changes) - set(self.GENERATOR_WRITABLE)
         if unknown:
             raise ValueError(f"not writable on 1901: {sorted(unknown)}")
 
         prior = self.generator()
-        block = {k: v for k, v in prior.items()
-                 if k not in ("opt", "result", "reason")}
+        block = {k: prior[k] for k in self.GENERATOR_BLOCK_KEYS if k in prior}
+        withheld = sorted(k for k in prior
+                          if k not in block and k not in ("opt", "result", "reason"))
         before = {k: prior.get(k) for k in changes}
         block.update(changes)
         block["opt"] = 1
@@ -612,6 +632,7 @@ class DirectConnectClient:
             "after": after,
             "confirmed": not mismatched,
             "mismatched": mismatched,
+            "withheld": withheld,
         }
 
     def set_generator_window(self, window: int, enabled: bool,
