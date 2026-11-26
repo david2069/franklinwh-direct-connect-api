@@ -5,6 +5,86 @@ Status: `queued` → `planned` → `in-progress` → `done`.
 
 ---
 
+## DEF-WIRELOG-CAMELCASE-NETWORK — redacted wire logs leak 1117's MAC addresses and LAN IPs
+
+**Severity:** S1 (privacy disclosure; owner agreed 2026-11-26) · **Status:** QUEUED · **Filed:** 2026-11-26 · **Area:** wire log
+
+`wirelog._is_sensitive()` matches the short names `mac`, `ip`, `dns` and `gateway` as
+whole tokens, splitting field names only on `_`. The 1117 reply spells its fields in
+camelCase (`eth0MAC`, `eth0StaticIP`, `eth0GateWay`, `eth0DNS`, `wifiMAC`, `operatorMAC`,
+and the `eth1`/`wifi` equivalents), so none of them split into a matching token. Checked
+2026-11-26 on 0.6.1: `redact({"eth0MAC": ..., "eth0StaticIP": ...})` returns both values
+unchanged, while `eth0_mac` is redacted.
+
+A log written with `--wire-log-redact`, which the module documents as safe to share in an
+issue, therefore carries the site's MAC addresses, LAN IPs, gateway and DNS in clear. The
+module docstring promises MAC addresses are redacted. Same class as the 0.5.1 latitude
+leak, which was released on its own.
+
+**Fix:** split camelCase as well as `_` when tokenising (`eth0StaticIP` -> `eth0`,
+`static`, `ip`), keeping the whole-token rule so `clipping` and `machine` stay readable.
+Test against every 1117 key name from a real reply, and verify the test fails without the
+fix. **Regression risk:** low; only widens redaction. S1, so a patch release on its own.
+
+---
+
+## DEF-SETGEN-ECHOES-V2L — `set_generator()` writes the V2L fields back, untested
+
+**Severity:** S2 (unverified hardware write; workaround: do not call it) · **Status:** QUEUED · **Filed:** 2026-11-26 · **Area:** client commands
+
+`set_generator()` (`client.py`) reads the whole 1901 block, patches the requested fields
+and writes every key back with `opt: 1`, dropping only `opt`/`result`/`reason`. On
+`V12R02B60D00_260924` the block carries eight V2L keys it did not have on
+`V12R02B30D06_260304` (see INFO-FW-B60-KEYMAP), so any generator change now also writes
+`v2LModeEnable`, `v2LModeCtrl`, `v2LRunState` and the rest. The write path was verified on
+hardware on 2026-09-14, before those keys existed; writing them back unchanged has never
+been tested.
+
+**Fix:** write back only keys the library knows (`GENERATOR_WRITABLE` plus the fields that
+were present in the verified block), and drop the rest. Needs a G2 hardware test with the
+owner, because it changes what a hardware write sends. **Regression risk:** medium; it
+changes the write payload.
+
+---
+
+## INFO-FW-B60-KEYMAP — key differences on V12R02B60D00, from a live read
+
+**Severity:** S3 (documentation) · **Status:** QUEUED · **Filed:** 2026-11-26 · **Area:** docs
+
+Live read-only session on the reference aGate, 2026-11-26 02:56 AEDT, firmware
+`IBG_VER V12R02B60D00_260924`, `protocolVer V1.12.02`. One connection: `1101` login,
+`{"opt": 0}` to 1111, 1113, 1117, 1119, 1301, 1409, 1411, 1701, 1723, 1829, 1901, 1903, and
+`{"opt": 1}` to 1725 (the library's `mode_list()`). Compared with app captures of the same
+site on `V12R02B30D06_260304` and `V12R02B10D00_241311`:
+
+- **1301:** 39 -> 41 keys: `v2lModeEnable`, `v2lRunState`.
+- **1901:** 34 -> 42 keys: `v2LCarRatedPower`, `v2LModeCtrl`, `v2LModeEnable`,
+  `v2LRunState`, `v2LStartTimeout`, `v2lAccessMethod`, `v2lChargeEna`, `v2lOutVoltLevel`.
+- **1701:** 21 -> 23 keys: `csipAuxFallbackExportLimit`, `gridImportLimit`.
+- **Unchanged:** 1111, 1117, 1119, 1409, 1411, 1723, 1725, 1829, 1903.
+- **1113:** timed out once, not retried. One event; it does not show 1113 was removed.
+
+**Case differs between commands:** 1301 spells `v2lModeEnable`/`v2lRunState`, 1901
+`v2LModeEnable`/`v2LRunState`, while 1901's other three V2L keys use lowercase `v2l`.
+
+**Conflict with `docs/FIRMWARE_MAP.md`:** it says one key was added to the install profile
+(from a one-key third-party 1702 reading). The full 1702 here has two keys absent from the
+B30D06 capture. The read wins; the doc needs correcting.
+
+**Not established:** what any V2L or generator value means. Every V2L and generator state
+value read 0 (`genEn`, `genStat`, `v2lRunState`, `v2LModeCtrl`) on a site with no generator
+and V2L not in use. One site, one firmware, one reading.
+
+**No new cmdTypes.** A read-only gap sweep the same day (12:18-12:24 AEDT, same firmware)
+sent the 335 uncatalogued odd codes in 1101-1909, 11 payload shapes each, `opt` 0 or
+absent only: **335 rejected, 0 responded**, on one connection. The catalog is still
+complete for that band on this firmware. Codes outside 1101-1909 were not swept.
+
+**Fix:** update `docs/FIRMWARE_MAP.md` and the 1301/1901 catalog descriptions. **Regression
+risk:** none.
+
+---
+
 ## DEF-VERSION-DRIFT — `__version__` says 0.4.0 while the distribution is 0.5.0
 
 **Severity:** S2 (wrong value reported, no workaround in-process) · **Status:** QUEUED · **Filed:** 2026-10-31 · **Area:** packaging
