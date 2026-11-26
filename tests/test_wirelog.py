@@ -313,3 +313,36 @@ def test_ordinary_fields_are_not_over_redacted(field):
         assert out[field] == "<redacted:7>"      # contains "serial": masked, acceptable
     else:
         assert out[field] == "KEEP-ME", f"{field} was over-redacted"
+
+
+# DEF-WIRELOG-CAMELCASE-NETWORK: the 1117 reply's real key names (read from the reference
+# aGate, V12R02B60D00, 2026-11-26; values not recorded here). Every address field must be
+# redacted; the status fields must stay readable.
+_1117_ADDRESS_KEYS = [
+    "wifiMAC", "wifiStaticIP", "wifiDNS", "wifiGateWay",
+    "eth0MAC", "eth0StaticIP", "eth0DNS", "eth0GateWay",
+    "eth1MAC", "eth1StaticIP", "eth1DNS", "eth1GateWay",
+    "operatorMAC", "operatorDNS",
+]
+_1117_STATUS_KEYS = ["currentNetType", "wifiDHCP", "eth0DHCP", "eth1DHCP",
+                     "operatorRSSI", "awsStatus"]
+
+
+@pytest.mark.parametrize("key", _1117_ADDRESS_KEYS)
+def test_1117_camelcase_address_fields_are_redacted(key):
+    from franklinwh_direct_connect_api.wirelog import redact
+    out = redact({key: "192.0.2.10"})
+    assert out[key] == "<redacted:10>"
+
+
+@pytest.mark.parametrize("key", _1117_STATUS_KEYS)
+def test_1117_status_fields_stay_readable(key):
+    from franklinwh_direct_connect_api.wirelog import redact
+    assert redact({key: 1}) == {key: 1}
+
+
+@pytest.mark.parametrize("key", ["clipping", "machine", "macroMode", "ipsum"])
+def test_camelcase_split_keeps_whole_token_rule(key):
+    """Whole tokens only: these must not be redacted by the camelCase split."""
+    from franklinwh_direct_connect_api.wirelog import _tokens, SENSITIVE_TOKENS
+    assert not (_tokens(key) & SENSITIVE_TOKENS)

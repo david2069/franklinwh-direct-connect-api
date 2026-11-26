@@ -79,7 +79,7 @@ The owner's request: "We need the api and cli to adapt to capabilities of each f
 
 ## DEF-WIRELOG-CAMELCASE-NETWORK — redacted wire logs leak 1117's MAC addresses and LAN IPs
 
-**Severity:** S1 (privacy disclosure; owner agreed 2026-11-26) · **Status:** QUEUED · **Filed:** 2026-11-26 · **Area:** wire log
+**Severity:** S1 (privacy disclosure; owner agreed 2026-11-26) · **Status:** FIXED (2026-11-27, pending release) · **Filed:** 2026-11-26 · **Area:** wire log
 
 `wirelog._is_sensitive()` matches the short names `mac`, `ip`, `dns` and `gateway` as
 whole tokens, splitting field names only on `_`. The 1117 reply spells its fields in
