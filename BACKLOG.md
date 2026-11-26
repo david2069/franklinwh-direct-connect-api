@@ -2215,10 +2215,68 @@ results + firmware version recorded in the commit/BACKLOG.
 
 ---
 
-## DEF-RESERVED-SOC-RESEARCH — RESOLVED: reserved SoC is CLOUD-OWNED (read-only locally)
+## DEF-RESERVED-SOC-RESEARCH — no working local reserve write found; research OPEN
 
-**Status:** RESOLVED (2026-07-29). There is **no local write path** — by design.
-**Filed:** 2026-07-29
+**Status:** OPEN (reopened 2026-11-27 by the owner, who treats a native local write as live
+research). It was marked RESOLVED on 2026-07-29 ("no local write path, by design"), but
+that was a conclusion drawn from discards on one firmware. The text below is kept as the
+historical record, and its "cloud-owned / read-only cache" wording is a hypothesis, not a
+finding. **Filed:** 2026-07-29
+
+### What has not been tried (2026-11-27)
+
+- **No reserve write on V12R02B60D00.** Every recorded attempt predates that firmware: the
+  dated ones are 2026-07-29 (`1727`/`1725` full block, B30D06) and 2026-09-11 (`1405` full
+  block, B30D06). Angle 5 below ("retest after any OTA") has not been done.
+- **No reserve write with Debug Mode on.** No attempt in this repo or in the Bridge
+  (`bedd343`) records the Debug Mode state; all of them predate the first `1821` write
+  (2026-10-23). Debug Mode on has changed write behaviour once: the `1701` grid-limit write
+  was **stored** with it on (V12R02B60D00, 2026-10-23, one test, the Bridge session's
+  reading), where it had been acknowledged and not stored with it off on earlier firmware.
+
+### Test plan T-RESERVE-DEBUG (not run; needs the owner present)
+
+**Preconditions:**
+- **The owner lifts Rule 2 for `1821` for this one test**, in this session. A lift recorded
+  elsewhere does not carry over.
+- The owner is present throughout. **Debug Mode on stops normal battery operation**
+  (2026-10-23: discharge stopped, the house moved to the grid).
+- Record which other clients are connected, and count the sockets.
+- Record `IBG_VER` and `protocolVer` from the `1102` login.
+- Changes **one variable at a time**: Debug Mode state, then one write path.
+
+**Steps (each read saved with its time):**
+1. **Baseline, Debug Mode off.**
+   - Read `1821`, `1726` (all modes' `reserved_soc`), `1405`, `1301 run_status` and battery power.
+   - Note the reserves the cloud app shows.
+2. **Control, Debug Mode off.** Write the full `1405` block with one reserve-bearing field
+   changed by a small, safe step (e.g. `BBBackupSoc` +5). Read back `1405` and `1726`
+   at once, then again at 60 s. This repeats 2026-09-11 on B60D00, so a Debug Mode result
+   can be told apart from a firmware result.
+3. **Debug Mode on.** Write `1821` with `set_debug_mode(True)` and confirm `enable` reads `1`.
+4. **The same `1405` write** as step 2. Read back `1405` and `1726` at once and at 60 s,
+   and check the cloud app.
+5. **Only if step 4 is negative, and only with the owner's go-ahead:** the same with `1727`
+   (full mode entry, the TOU and Self reserve each in turn), then `1725` (full list).
+   One path per write, with a read-back after each.
+6. **Restore.**
+   - Write back every changed value and verify the read-back.
+   - Write `1821` off and confirm `enable` reads `0`.
+   - Confirm normal battery operation is back (`run_status` and battery power as in step 1).
+   - Confirm the cloud app shows the step-1 reserves.
+7. **Record:** a dated `tests/results/` file (Rule 6) with every frame sent, every read-back,
+   the firmware, the client roll call and the restore.
+
+**What each outcome would and would not show:**
+- **Stored with Debug Mode on, not off:** shows a Debug-Mode-gated local write on this
+  firmware, at this one site. It is still not a mapping. It does not show whether the cloud
+  overwrites the value later: re-read at +5 min and after a mode change.
+- **Stored in both:** a firmware change, not Debug Mode.
+- **Discarded in both:** extends the negative result to B60D00 and Debug Mode on. Angles 2
+  and 3 below stay open.
+
+**Not to be done:** leaving Debug Mode on, writing `1823`/`1825`, or changing `1205 sunsMdEn`.
+
 
 **CONFIRMED via cloud→local sync test (2026-07-29):** set Self reserve 5→8 via the
 FranklinWH **cloud** API (`PATCH /api/gateways/{id}/mode/reserve {soc, work_mode}`, "Operate
