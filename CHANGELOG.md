@@ -6,6 +6,29 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Upgrade notes
+
+- **Generator writes now raise `AccessoryNotInstalled` while the generator is not
+  installed.** `set_generator()`, `set_generator_soc()`, `set_generator_window()` and
+  `set_generator_exercise()` used to write while `1901 genEn` read 0. They now refuse
+  before anything is sent. `set_generator(genEn=...)` itself is exempt, so the flag stays
+  settable. Catch `AccessoryNotInstalled`, or check `accessories()` first.
+  (FEAT-FW-CAPABILITIES)
+
+### Added
+
+- **`client.accessories()` and the `accessories` CLI command** show generator and V2L
+  state as the firmware reports it.
+  - Each accessory reads installed, not installed, or not reported. On firmware without
+    the V2L keys, V2L reads "not reported", not "off".
+  - Generator mode (`auto`/`manual`) and start control (`voltage_sense`/`ats`/`dry_contact`)
+    are labelled from app-driven mapping on one site (V12R02B60D00). Other values are
+    returned raw with no label.
+  - Schedules and SoC thresholds are returned as read.
+  - Measurement fields are returned raw, marked "meaning not established".
+  - Each result names the firmware, protocol version and `SyHdVersion` it came from.
+
+
 ## [0.6.2] — 2026-11-27
 
 ### Security

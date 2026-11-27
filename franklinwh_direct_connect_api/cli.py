@@ -620,6 +620,52 @@ def _cmd_firmware(args: argparse.Namespace) -> int:
         return 2
 
 
+def _cmd_accessories(args: argparse.Namespace) -> int:
+    """Show generator and V2L state as this firmware reports it. Read-only."""
+    if not args.host:
+        print("error: --host/-i is required for live commands", file=sys.stderr)
+        return 2
+    try:
+        with DirectConnectClient(args.host, args.port, timeout=args.timeout,
+                                 retries=args.retries, equip_no=args.equip) as c:
+            a = c.accessories()
+    except (OSError, TransportError, TimeoutError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    if args.json:
+        json.dump(a, sys.stdout, indent=2); print()
+        return 0
+
+    def state(v):
+        return {True: "installed", False: "not installed", None: "not reported"}[v]
+
+    def label(lbl, raw):
+        return f"{lbl} ({raw})" if lbl else f"raw {raw} (no mapping)"
+
+    src, g, v = a["source"], a["generator"], a["v2l"]
+    print(f"  firmware   {src['IBG_VER']}  protocol {src['protocolVer']}  "
+          f"SyHdVersion {src['SyHdVersion']}")
+    print(f"  generator  {state(g['installed'])}")
+    if g["mode_raw"] is not None:
+        print(f"    mode           {label(g['mode'], g['mode_raw'])}")
+    if g["start_control_raw"] is not None:
+        print(f"    start control  {label(g['start_control'], g['start_control_raw'])}")
+    print(f"    start/stop SoC {g['soc_start_below']} / {g['soc_stop_above']} %")
+    for n, w in g["windows"].items():
+        on = "on " if w["enabled"] else "off"
+        print(f"    window {n}       {on} {w['start']}-{w['end']}")
+    print(f"    metrics        {g['metrics_raw']['1901']} {g['metrics_raw']['1301']}")
+    print(f"                   ({g['metrics_raw']['note']})")
+    if v["reported"]:
+        print(f"  v2l        {state(v['installed'])}")
+        print(f"    raw            {v['raw']['1901'] or v['raw']['1301']}")
+    else:
+        print(f"  v2l        not reported by this firmware ({src['IBG_VER']})")
+    if g["installed"] is not True:
+        print("  generator writes are refused while it is not installed")
+    return 0
+
+
 _REBOOT_WARNING = (
     "WARNING: this REBOOTS the aGate. All connections drop for ~1-2 minutes\n"
     "   (sendMqtt :9000 and Modbus :502); the battery keeps running on its own.\n"
@@ -1742,6 +1788,11 @@ def build_parser() -> argparse.ArgumentParser:
                         help="live: show the aGate firmware/version block (login manifest)")
     fw.add_argument("--json", action="store_true", help="emit the version block as JSON")
     fw.set_defaults(func=_cmd_firmware)
+
+    ac = sub.add_parser("accessories",
+                        help="live: generator and V2L state as this firmware reports it")
+    ac.add_argument("--json", action="store_true", help="emit the state as JSON")
+    ac.set_defaults(func=_cmd_accessories)
 
     rb = sub.add_parser("reboot",
                         help="live: reboot the aGate (asks to confirm; --force to skip)")
