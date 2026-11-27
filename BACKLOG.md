@@ -79,12 +79,16 @@ The owner's rule: *"our repo will never install or uninstall either accessory �
 the states and metrics … allow switching, toggling and view/edit schedules"*, and only for
 an accessory that is enabled/installed.
 
-1. **Never install or uninstall.**
-   - The library and the CLI never write the "installed" flags: `1901 genEn` (generator)
-     and `1901 v2LModeEnable` (V2L).
-   - Those are the installer's decision, made in the official app.
-   - This also keeps the library from triggering the gateway's exclusion: enabling V2L set
-     `genEn` to 0, seen twice on 2026-11-26.
+1. **Never install or uninstall from the client.**
+   - The Direct Connect Bridge (UI and its clients) never offers writing the "installed"
+     flags, `1901 genEn` (generator) and `1901 v2LModeEnable` (V2L). Those are the
+     installer's decision.
+   - **The library keeps `genEn` writable** (owner, 2026-11-27: *"We still need it in the
+     library. We will not expose it to DC Bridge clients or UI"*). This is a library
+     capability, not a product feature; the CLI does not add a command for it.
+   - `v2LModeEnable` is not writable in the library today (withheld since 0.6.2), and no
+     change to that is planned.
+   - Callers should know: enabling V2L set `genEn` to 0, seen twice on 2026-11-26.
 2. **Show state and metrics.**
    - Each accessory is reported as **installed / not installed** (`genEn`, `v2LModeEnable`),
      or **not reported by this firmware** when the keys are absent.
@@ -109,7 +113,7 @@ an accessory that is enabled/installed.
 | This library (protocol) | The Direct Connect Bridge (product and UI) |
 |---|---|
 | Read 1901/1301/1102 and return the accessory flags, `SyHdVersion` and firmware **raw**, plus the app-mapped labels with their evidence (`accessories()`) | **Device DB**: the `SyHdVersion` → model/SKU → compatible accessories correlation (`devicedb.py`, from FWHAI's Device DB v0.6.0 and the vendor's Backwards Compatibility Statement) |
-| **Refuse** writes to `genEn` / `v2LModeEnable` (rule 1) | **User guidance**: tell users to contact FranklinWH Support or their authorised installer to configure each module. Functionality varies between module versions (owner) |
+| Keep `genEn` writable as an API capability; `v2LModeEnable` stays withheld | **User guidance**: tell users to contact FranklinWH Support or their authorised installer to configure each module. Functionality varies between module versions (owner) |
 | **Gate** generator/V2L control and schedule writes on the installed flag, raising a plain "not installed" error (rule 3) | **UI**: no install/uninstall buttons; show installed / not installed / not reported; disabled edits; explain the generator/V2L exclusion; label raw metrics |
 | Read-back verification of every write it allows | Deciding what to show for which hardware, and model-specific notes |
 | CLI: show the state as read, with no product guidance | The aHub and any other accessory with no protocol data |
@@ -120,11 +124,10 @@ device table. The Bridge's table gaps (no V2L row; the AU smart-circuits row say
 to the Bridge session on 2026-11-27 as its own items.
 
 **What the rules change in the current code:**
-- `set_generator()` today accepts `genEn`, which is in `GENERATOR_WRITABLE`. That
-  **breaks rule 1**: it must be removed and refused. This is a caller-visible change, so it
-  needs an Upgrade note.
-- The generator write helpers today write whatever `genEn` says. They need the
-  installed-only gate from rule 3.
+- `genEn` **stays** in `GENERATOR_WRITABLE`, so the library change is not caller-visible.
+  The Bridge removes its Enable/Disable buttons on its own (its issue #848).
+- The generator write helpers need the installed-only gate from rule 3, **except for
+  `genEn` itself**. Otherwise the gate would block the write that sets the flag.
 - **Not yet writable, so mapping is needed before they can be offered:**
   - Auto/Manual `mode` is not in `GENERATOR_WRITABLE`. It appeared on B60D00 and was mapped
     from the app on 2026-11-26, but writing it has not been tested.
@@ -136,7 +139,7 @@ to the Bridge session on 2026-11-27 as its own items.
 - The scheduling surface is the same `charge1-3` windows plus the exercise schedule.
   Whether V2L has its own schedule is not known.
 
-**Evidence base:** one site, B60D00, 2026-11-26 (`docs/FIRMWARE_MAP.md` §6, PR #48). Measurement fields have no established meaning. **Regression risk:** medium. The API addition is additive, but removing `genEn` from the writable keys is caller-visible.
+**Evidence base:** one site, B60D00, 2026-11-26 (`docs/FIRMWARE_MAP.md` §6, PR #48). Measurement fields have no established meaning. **Regression risk:** medium. Additive API; the installed-only gate is caller-visible for writes made while the flag reads 0.
 
 ---
 
