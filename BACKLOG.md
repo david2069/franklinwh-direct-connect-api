@@ -85,6 +85,10 @@ an accessory that is enabled/installed.
    - Those are the installer's decision, made in the official app.
    - This also keeps the library from triggering the gateway's exclusion: enabling V2L set
      `genEn` to 0, seen twice on 2026-11-26.
+   - **Wherever the library or CLI shows an accessory, and wherever it refuses an
+     install/uninstall, it tells the user to contact FranklinWH Support or their
+     authorised installer to configure the module.** Owner, 2026-11-27: functionality
+     varies between versions of these accessory modules.
 2. **Show state and metrics.**
    - Each accessory is reported as **installed / not installed** (`genEn`, `v2LModeEnable`),
      or **not reported by this firmware** when the keys are absent.
@@ -103,6 +107,24 @@ an accessory that is enabled/installed.
      to the original aGate X V2L support. That is the owner's statement; this repo has no
      reading from other hardware.
    - The library shows both flags as read and lets the gateway decide.
+
+**Hardware correlation: the Bridge has it, this library does not.**
+- The Direct Connect Bridge's `devicedb.py` (read at `bedd343`, 2026-11-27) imports FWHAI's
+  Device DB (v0.6.0): the gateways by `SyHdVersion`, and the accessories with their
+  compatible gateways.
+- It is cross-checked against FranklinWH's *Backwards Compatibility Statement*, rev US V1.0
+  (21 July 2026), which covers US and Canada only.
+- Gaps against what has been observed:
+  - **There is no V2L module row.**
+  - The AU smart-circuits row (`ACCY-SCV1-AU`) says `v2l: False`, yet the official app
+    offered V2L on an AU gateway (`SyHdVersion` 102) on 2026-11-26. Neither source settles
+    it.
+  - The only AU generator row is V1. The owner's "V2 module" cannot be matched to a SKU
+    from the table.
+  - The aHub row carries no data.
+- **This library reports `SyHdVersion` and the flags raw.** It does not infer from the
+  model which accessory is fitted. The model table stays the Bridge's, unless the owner
+  decides to share it.
 
 **What the rules change in the current code:**
 - `set_generator()` today accepts `genEn`, which is in `GENERATOR_WRITABLE`. That
