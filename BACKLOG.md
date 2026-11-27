@@ -2225,16 +2225,39 @@ finding. **Filed:** 2026-07-29
 
 ### What has not been tried (2026-11-27)
 
-- **No reserve write on V12R02B60D00.** Every recorded attempt predates that firmware: the
+- **No reserve write on V12R02B60D00** (before 2026-11-27; see the result below). Every recorded attempt predates that firmware: the
   dated ones are 2026-07-29 (`1727`/`1725` full block, B30D06) and 2026-09-11 (`1405` full
   block, B30D06). Angle 5 below ("retest after any OTA") has not been done.
-- **No reserve write with Debug Mode on.** No attempt in this repo or in the Bridge
+- **No reserve write with Debug Mode on** (before 2026-11-27). No attempt in this repo or in the Bridge
   (`bedd343`) records the Debug Mode state; all of them predate the first `1821` write
   (2026-10-23). Debug Mode on has changed write behaviour once: the `1701` grid-limit write
   was **stored** with it on (V12R02B60D00, 2026-10-23, one test, the Bridge session's
   reading), where it had been acknowledged and not stored with it off on earlier firmware.
 
-### Test plan T-RESERVE-DEBUG (not run; needs the owner present)
+### T-RESERVE-DEBUG result (2026-11-27, owner present) — negative, Debug Mode off and on
+
+Run on V12R02B60D00_260924 (protocolVer V1.12.02), one site, with Self-Consumption active
+(reserve 5). Each write was read back at +0, +5 and +15 s:
+
+| Debug Mode | Frame | Reply | Read-back |
+|---|---|---|---|
+| off | `1405` opt:1, full 9-field block, `selfMinSoc` 0→12 | `result:0`, echoes 12 | `selfMinSoc` 0; `1726` unchanged |
+| off | `1727` opt:3, full Self entry, `reserved_soc` 5→10 | `result:0` | `reserved_soc` 5 |
+| on (`1821` read back 1) | same `1405` | `result:0`, echoes 12 | unchanged |
+| on | same `1727` | `result:0` | unchanged |
+
+- Debug Mode was on for about 32 s, then written off and read back 0.
+- Nothing changed, so nothing needed restoring. The reserves read 100/20/5 before and after.
+- **Within these limits, Debug Mode does not make these two reserve writes persist on this
+  firmware.** One run, one site.
+- **Not covered:**
+  - `1725` full list;
+  - the TOU reserve (writing it through `1727` would switch modes);
+  - polls longer than 15 s (shortened at the owner's request);
+  - a cloud-app check;
+  - angles 2 and 3 below.
+
+### Test plan T-RESERVE-DEBUG (as planned; run 2026-11-27, see above)
 
 **Preconditions:**
 - **The owner lifts Rule 2 for `1821` for this one test**, in this session. A lift recorded
