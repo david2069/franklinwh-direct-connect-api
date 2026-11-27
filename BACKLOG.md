@@ -85,10 +85,6 @@ an accessory that is enabled/installed.
    - Those are the installer's decision, made in the official app.
    - This also keeps the library from triggering the gateway's exclusion: enabling V2L set
      `genEn` to 0, seen twice on 2026-11-26.
-   - **Wherever the library or CLI shows an accessory, and wherever it refuses an
-     install/uninstall, it tells the user to contact FranklinWH Support or their
-     authorised installer to configure the module.** Owner, 2026-11-27: functionality
-     varies between versions of these accessory modules.
 2. **Show state and metrics.**
    - Each accessory is reported as **installed / not installed** (`genEn`, `v2LModeEnable`),
      or **not reported by this firmware** when the keys are absent.
@@ -108,23 +104,20 @@ an accessory that is enabled/installed.
      reading from other hardware.
    - The library shows both flags as read and lets the gateway decide.
 
-**Hardware correlation: the Bridge has it, this library does not.**
-- The Direct Connect Bridge's `devicedb.py` (read at `bedd343`, 2026-11-27) imports FWHAI's
-  Device DB (v0.6.0): the gateways by `SyHdVersion`, and the accessories with their
-  compatible gateways.
-- It is cross-checked against FranklinWH's *Backwards Compatibility Statement*, rev US V1.0
-  (21 July 2026), which covers US and Canada only.
-- Gaps against what has been observed:
-  - **There is no V2L module row.**
-  - The AU smart-circuits row (`ACCY-SCV1-AU`) says `v2l: False`, yet the official app
-    offered V2L on an AU gateway (`SyHdVersion` 102) on 2026-11-26. Neither source settles
-    it.
-  - The only AU generator row is V1. The owner's "V2 module" cannot be matched to a SKU
-    from the table.
-  - The aHub row carries no data.
-- **This library reports `SyHdVersion` and the flags raw.** It does not infer from the
-  model which accessory is fitted. The model table stays the Bridge's, unless the owner
-  decides to share it.
+**Split of responsibility (owner, 2026-11-27): this repo is purely a library.**
+
+| This library (protocol) | The Direct Connect Bridge (product and UI) |
+|---|---|
+| Read 1901/1301/1102 and return the accessory flags, `SyHdVersion` and firmware **raw**, plus the app-mapped labels with their evidence (`accessories()`) | **Device DB**: the `SyHdVersion` → model/SKU → compatible accessories correlation (`devicedb.py`, from FWHAI's Device DB v0.6.0 and the vendor's Backwards Compatibility Statement) |
+| **Refuse** writes to `genEn` / `v2LModeEnable` (rule 1) | **User guidance**: tell users to contact FranklinWH Support or their authorised installer to configure each module. Functionality varies between module versions (owner) |
+| **Gate** generator/V2L control and schedule writes on the installed flag, raising a plain "not installed" error (rule 3) | **UI**: no install/uninstall buttons; show installed / not installed / not reported; disabled edits; explain the generator/V2L exclusion; label raw metrics |
+| Read-back verification of every write it allows | Deciding what to show for which hardware, and model-specific notes |
+| CLI: show the state as read, with no product guidance | The aHub and any other accessory with no protocol data |
+
+The library does not infer from the model which accessory is fitted, and it carries no
+device table. The Bridge's table gaps (no V2L row; the AU smart-circuits row says
+`v2l: False` while the app offered V2L on `SyHdVersion` 102; no AU generator V2) were sent
+to the Bridge session on 2026-11-27 as its own items.
 
 **What the rules change in the current code:**
 - `set_generator()` today accepts `genEn`, which is in `GENERATOR_WRITABLE`. That
