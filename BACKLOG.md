@@ -2257,6 +2257,17 @@ Run on V12R02B60D00_260924 (protocolVer V1.12.02), one site, with Self-Consumpti
   - a cloud-app check;
   - angles 2 and 3 below.
 
+**Consistent with the official app (owner's observation, first recorded 2026-07-15 under
+DEF-RESERVED-SOC-PARTIAL-FRAME, restated 2026-11-27).**
+- In Direct Connect / hotspot mode, the official app offers mode switching but **no
+  reserved-SoC setting**.
+- The owner's reasoning: if the local API supported a reserve write, the app's Direct
+  Connect mode would offer it too.
+- This is an inference from what the app offers, not a protocol measurement. An app can
+  leave out a capability the firmware has. It agrees with every local write attempt on
+  record, including today's.
+- The firmware the app was observed on in July was not recorded.
+
 ### Test plan T-RESERVE-DEBUG (as planned; run 2026-11-27, see above)
 
 **Preconditions:**
