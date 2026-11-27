@@ -45,6 +45,43 @@ def _validate_hhmm(value: str) -> str:
     return f"{h:02d}:{m:02d}"
 
 
+class AccessoryNotInstalled(RuntimeError):
+    """A write to an accessory whose installed flag does not read 1 was refused.
+
+    Raised before anything is sent. ``accessory`` names it (``"generator"``);
+    ``flag`` is the flag's key and ``value`` what it read (``None`` when this
+    firmware does not report the flag at all).
+    """
+
+    def __init__(self, accessory: str, flag: str, value: Any) -> None:
+        self.accessory, self.flag, self.value = accessory, flag, value
+        state = "is not reported by this firmware" if value is None else f"reads {value!r}"
+        super().__init__(
+            f"{accessory} is not installed on this aGate ({flag} {state}); "
+            f"writes to an accessory that is not installed are refused")
+
+
+#: App-mapped labels for 1901 setting keys. One site, V12R02B60D00_260924, 2026-11-26:
+#: the owner changed one app setting at a time and 1901 was read after each change
+#: (docs/FIRMWARE_MAP.md section 6). Values outside these maps are returned raw only.
+GENERATOR_MODE_LABELS = {1: "auto", 2: "manual"}                       # 3 observations
+GENERATOR_START_CONTROL_LABELS = {1: "voltage_sense", 2: "ats", 3: "dry_contact"}  # 4
+
+#: Accessory measurement keys. No generator or vehicle was fitted when these were read,
+#: so no meaning is established for any of them; they are returned raw and unlabelled.
+GENERATOR_METRIC_KEYS_1901 = ("genStat", "power", "curr", "volt", "freq", "genpowerGen")
+GENERATOR_METRIC_KEYS_1301 = ("genStat", "p_gen", "kwh_gen")
+METRICS_NOTE = "raw; meaning not established (no generator or vehicle fitted when mapped)"
+
+
+def _flag(block: dict[str, Any], key: str) -> bool | None:
+    """1 -> True, 0 -> False, absent -> None ("not reported"), anything else -> None."""
+    if key not in block:
+        return None
+    v = block[key]
+    return True if v == 1 else False if v == 0 else None
+
+
 class DirectConnectClient:
     """
     Connect to an aGate broker and issue named commands.
@@ -488,6 +525,74 @@ class DirectConnectClient:
         """Generator + scheduled grid-charge configuration (cmd 1901 -> 1902)."""
         return self.call(Cmd.GENERATOR)
 
+    def accessories(self) -> dict[str, Any]:
+        """Generator and V2L state as this firmware reports it. Read-only.
+
+        Detects from the keys the aGate returns, not from a firmware table:
+
+        - ``installed`` is ``True``/``False`` from the flag, or ``None`` when this
+          firmware does not report it ("not reported" is not "not installed").
+        - Labels (``mode``, ``start_control``) come from app-driven mapping on one site
+          (V12R02B60D00, 2026-11-26); values outside it are ``None`` with the raw value
+          beside them.
+        - Measurement fields are returned raw under ``metrics_raw``: no meaning is
+          established for them.
+
+        This library does not say which accessory hardware is fitted, nor how to
+        install one; the flags are the app's settings as read.
+        """
+        fw = self.firmware()
+        gen = self.generator()
+        pf = self.power_flow()
+
+        g_inst = _flag(gen, "genEn")
+        windows = {
+            n: {"enabled": _flag(gen, f"charge{n}En"),
+                "start": gen.get(f"charge{n}StartTime"),
+                "end": gen.get(f"charge{n}EndTime")}
+            for n in (1, 2, 3) if f"charge{n}En" in gen
+        }
+        generator = {
+            "installed": g_inst,
+            "mode": GENERATOR_MODE_LABELS.get(gen.get("mode")),
+            "mode_raw": gen.get("mode"),
+            "start_control": GENERATOR_START_CONTROL_LABELS.get(gen.get("gridVoltCheck")),
+            "start_control_raw": gen.get("gridVoltCheck"),
+            "soc_start_below": gen.get("genStartElec"),
+            "soc_stop_above": gen.get("genCloseElec"),
+            "start_delay": gen.get("startDelTime"),
+            "windows": windows,
+            "exercise": {k: gen.get(k) for k in
+                         ("oilmanoEn", "manoFre", "manoDate", "manoStartTime", "manoTime")
+                         if k in gen},
+            "model": gen.get("genModel"),
+            "rated_power": gen.get("genRatedPower"),
+            "metrics_raw": {
+                "1901": {k: gen[k] for k in GENERATOR_METRIC_KEYS_1901 if k in gen},
+                "1301": {k: pf[k] for k in GENERATOR_METRIC_KEYS_1301 if k in pf},
+                "note": METRICS_NOTE,
+            },
+        }
+
+        v2l_1901 = {k: v for k, v in gen.items() if k.lower().startswith("v2l")}
+        v2l_1301 = {k: v for k, v in pf.items() if k.lower().startswith("v2l")}
+        reported = bool(v2l_1901 or v2l_1301)
+        v2l_flag = (_flag(gen, "v2LModeEnable") if "v2LModeEnable" in gen
+                    else _flag(pf, "v2lModeEnable"))
+        v2l = {
+            "reported": reported,
+            "installed": v2l_flag if reported else None,
+            "raw": {"1901": v2l_1901, "1301": v2l_1301},
+            "note": "values other than the installed flag: " + METRICS_NOTE,
+        }
+        return {
+            "generator": generator,
+            "v2l": v2l,
+            "source": {"IBG_VER": fw.get("IBG_VER"), "protocolVer": fw.get("protocolVer"),
+                       "SyHdVersion": fw.get("SyHdVersion"),
+                       "generator": "1901", "v2l": "1901+1301", "metrics": "1901+1301"},
+        }
+
     # -- writes (control) ----------------------------------------------------
     # Verified on aGate X over LAN TCP/9000 (2026-06-19). See catalog.WRITES.
 
@@ -605,6 +710,9 @@ class DirectConnectClient:
         (the V2L block on V12R02B60D00) are left out of the write and listed in
         ``withheld``, so changing a generator setting never rewrites them.
 
+        Raises :class:`AccessoryNotInstalled`, before anything is sent, when ``genEn``
+        does not read 1 -- unless the change is to ``genEn`` itself.
+
         Returns ``{ok, result, requested, before, after, confirmed, mismatched, withheld}``.
         """
         unknown = set(changes) - set(self.GENERATOR_WRITABLE)
@@ -612,6 +720,10 @@ class DirectConnectClient:
             raise ValueError(f"not writable on 1901: {sorted(unknown)}")
 
         prior = self.generator()
+        # Owner's rule (2026-11-27): no writes to an accessory that is not installed.
+        # genEn itself is exempt -- it is the flag, and gating it would make it unsettable.
+        if "genEn" not in changes and prior.get("genEn") != 1:
+            raise AccessoryNotInstalled("generator", "genEn", prior.get("genEn"))
         block = {k: prior[k] for k in self.GENERATOR_BLOCK_KEYS if k in prior}
         withheld = sorted(k for k in prior
                           if k not in block and k not in ("opt", "result", "reason"))

@@ -42,7 +42,7 @@ from .catalog import (
     response_for,
     run_status_desc,
 )
-from .client import DirectConnectClient
+from .client import AccessoryNotInstalled, DirectConnectClient
 from .protocol import (
     Frame,
     FrameStream,
@@ -106,6 +106,7 @@ __all__ = [
     "LocalTransport",      # deprecated alias of DirectConnectTransport
     "LocalClient",         # deprecated alias of DirectConnectClient
     "TransportError",
+    "AccessoryNotInstalled",
     "Emulator",
     "HostResult",
     "PortResult",

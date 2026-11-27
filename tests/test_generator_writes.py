@@ -25,8 +25,11 @@ GEN = {
 class FakeGen(LocalClient):
     """Applies writes like the real 1901 does."""
 
-    def __init__(self, applies=True):
+    def __init__(self, applies=True, installed=True):
         self.state = dict(GEN)
+        # Write-mechanics tests run against an installed generator; the not-installed
+        # refusal has its own tests below.
+        self.state["genEn"] = 1 if installed else 0
         self.applies = applies
         self.sent = []
 
@@ -216,3 +219,45 @@ def test_device_state_enums_match_the_cloud():
     assert catalog.bms_state_desc(5) == "Standby"
     assert catalog.pcs_state_desc(8) == "Online / Running"
     assert "unknown" in catalog.bms_state_desc(99)      # never invent a label
+
+
+# -- installed-only gate (owner's rule, 2026-11-27) ------------------------------------
+
+from franklinwh_direct_connect_api import AccessoryNotInstalled
+
+
+@pytest.mark.parametrize("write", [
+    lambda c: c.set_generator_soc(25, 80),
+    lambda c: c.set_generator_window(2, True, "02:00", "03:00"),
+    lambda c: c.set_generator_exercise(enabled=True),
+    lambda c: c.set_generator(manuSw=1),
+])
+def test_writes_to_a_generator_that_is_not_installed_are_refused_before_sending(write):
+    c = FakeGen(installed=False)
+    with pytest.raises(AccessoryNotInstalled) as e:
+        write(c)
+    assert c.sent == []                              # nothing reached the wire
+    assert (e.value.accessory, e.value.flag, e.value.value) == ("generator", "genEn", 0)
+
+
+def test_flag_not_reported_is_refused_and_says_so():
+    c = FakeGen()
+    del c.state["genEn"]
+    with pytest.raises(AccessoryNotInstalled, match="not reported by this firmware"):
+        c.set_generator_soc(25, 80)
+    assert c.sent == []
+
+
+def test_unexpected_flag_value_is_refused():
+    c = FakeGen()
+    c.state["genEn"] = 2
+    with pytest.raises(AccessoryNotInstalled):
+        c.set_generator_soc(25, 80)
+
+
+def test_genEn_itself_is_exempt_so_the_flag_stays_settable():
+    """Owner, 2026-11-27: genEn stays writable in the library."""
+    c = FakeGen(installed=False)
+    out = c.set_generator(genEn=1)
+    assert out["ok"] and c.state["genEn"] == 1
+    assert c.sent and c.sent[0][1]["genEn"] == 1

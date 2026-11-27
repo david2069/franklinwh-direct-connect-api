@@ -57,7 +57,7 @@ A read-only audit on 2026-11-26 checked the docs and catalog at `origin/main` a9
 
 ## FEAT-FW-CAPABILITIES — API and CLI report what this firmware actually returns
 
-**Severity:** S3 · **Status:** QUEUED · **Filed:** 2026-11-26 · **Area:** client commands, CLI
+**Severity:** S3 · **Status:** IN PROGRESS (2026-11-27: `accessories()`, the CLI command and the installed-only gate; V2L writes, `mode` and `manuSw` still need mapping) · **Filed:** 2026-11-26 · **Area:** client commands, CLI
 
 The owner's request: "We need the api and cli to adapt to capabilities of each firmware". Key sets already differ by firmware: 1102 gained 4 keys and 1701 gained `gridImportLimit` between B30D06 and B60D00, and 1901 and 1301 carry the V2L keys on B60D00.
 

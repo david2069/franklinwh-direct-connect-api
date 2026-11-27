@@ -13,14 +13,14 @@ differs. They are **not** forks of each other.
 | PyPI | `franklinwh-direct-connect-api` | — (source only) |
 | License | MIT | MIT |
 | Focus | full data layer + control + tooling + emulator | transport + command table |
-| Client methods | 56 public methods | ~10 |
+| Client methods | 57 public methods | ~10 |
 | Device capabilities covered | 70 cmdTypes catalogued, most with hardware-verified semantics (5 are marked UNCONFIRMED) | 44-command table (names/opcodes) |
 | Reads (battery cells, PE, energy, TOU, generator…) | ✅ deep | ⚠️ a few high-level queries |
 | Writes / control (mode, circuits, generator, off-grid, DER, Debug Mode) | ✅ 7 writes, most self-verifying (see the caveat below) | ⚠️ SunSpec-Modbus enable only |
 | Emulator / mock aGate | ✅ dynamic, multi-aPower | ❌ |
 | LAN discovery / scan | ✅ | ❌ |
-| CLI | ✅ 87 subcommands (16 purpose-built + one per cmdType) | ❌ |
-| Docstrings & worked examples | ✅ rich (62 docstring blocks in `client.py` alone) | ✅ README example |
+| CLI | ✅ 88 subcommands (17 purpose-built + one per cmdType) | ❌ |
+| Docstrings & worked examples | ✅ rich (65 docstring blocks in `client.py` alone) | ✅ README example |
 | Documentation | layered (usage/API/mapping) + verified catalog | one excellent protocol README |
 
 Neither library has a Home Assistant integration, a REST API or a web UI. Those live in a
@@ -104,7 +104,7 @@ discards. See [the table in USAGE](USAGE.md#writes-from-the-library).
 * **Discovery** — LAN scan for gateways on TCP 9000 with a real login handshake.
 * **Proxy / pcap decode / analyze** — a transparent decoding relay and offline capture
   tooling.
-* **CLI** — 16 purpose-built subcommands (`battery`, `mode`, `tou`, `energy_rollup`,
+* **CLI** — 17 purpose-built subcommands (`battery`, `mode`, `tou`, `energy_rollup`,
   `grid_profile`, `der_comms`, `scan`, `health`, `emulate`, `probe`, …) plus one
   generated per catalogued cmdType — 87 in total on 0.4.0.
 
@@ -156,12 +156,12 @@ the difference is largest, and it is what most developers actually feel.
 
 **Docstrings.** Every public method here carries a real docstring — what it reads or
 writes, the cmdType, the payload shape, the sign conventions, and the caveats (`client.py`
-alone has 62 docstring blocks). Writes document their read-modify-write recipe and how
+alone has 65 docstring blocks). Writes document their read-modify-write recipe and how
 success is verified. voidstarr's code is clean and typed with a solid README example, but
 the per-call documentation is lighter.
 
 **Examples.** A quick-start in the README, a how-to in `docs/USAGE.md`, and — uniquely —
-a **CLI of 87 subcommands** that is itself a set of worked examples: every command is a
+a **CLI of 88 subcommands** that is itself a set of worked examples: every command is a
 call into the library you can read, run offline against the emulator, or point at real
 hardware.
 
