@@ -73,7 +73,70 @@ The owner's request: "We need the api and cli to adapt to capabilities of each f
   - `generator` shows a V2L section, or "not reported by this firmware (<IBG_VER>)".
 - Writes stay limited to key sets verified on hardware.
 
-**Evidence base:** one site, B60D00, 2026-11-26 (`docs/FIRMWARE_MAP.md` §6, PR #48). Measurement fields have no established meaning. **Regression risk:** medium (additive API).
+### Accessory control rules (owner, 2026-11-27)
+
+The owner's rule: *"our repo will never install or uninstall either accessory — only show
+the states and metrics … allow switching, toggling and view/edit schedules"*, and only for
+an accessory that is enabled/installed.
+
+1. **Never install or uninstall.**
+   - The library and the CLI never write the "installed" flags: `1901 genEn` (generator)
+     and `1901 v2LModeEnable` (V2L).
+   - Those are the installer's decision, made in the official app.
+   - This also keeps the library from triggering the gateway's exclusion: enabling V2L set
+     `genEn` to 0, seen twice on 2026-11-26.
+2. **Show state and metrics.**
+   - Each accessory is reported as **installed / not installed** (`genEn`, `v2LModeEnable`),
+     or **not reported by this firmware** when the keys are absent.
+   - Metrics are returned raw, labelled "meaning not established", until a site with the
+     hardware fitted establishes them.
+3. **Control only what is installed.** These are allowed only while that accessory's flag
+   reads 1; otherwise they are refused with a clear "not installed" error:
+   - switching or toggling the generator (Auto/Manual `mode`, manual start/stop);
+   - editing the generator's schedules (the three windows, the exercise schedule, the
+     start/stop SoC);
+   - the V2L equivalents.
+
+   The flag is read from the same 1901 read the write already makes.
+4. **Mutual exclusion is reported, not enforced or worked around.**
+   - The owner states that the exclusion belongs to this V2L-capable module version, not
+     to the original aGate X V2L support. That is the owner's statement; this repo has no
+     reading from other hardware.
+   - The library shows both flags as read and lets the gateway decide.
+
+**Split of responsibility (owner, 2026-11-27): this repo is purely a library.**
+
+| This library (protocol) | The Direct Connect Bridge (product and UI) |
+|---|---|
+| Read 1901/1301/1102 and return the accessory flags, `SyHdVersion` and firmware **raw**, plus the app-mapped labels with their evidence (`accessories()`) | **Device DB**: the `SyHdVersion` → model/SKU → compatible accessories correlation (`devicedb.py`, from FWHAI's Device DB v0.6.0 and the vendor's Backwards Compatibility Statement) |
+| **Refuse** writes to `genEn` / `v2LModeEnable` (rule 1) | **User guidance**: tell users to contact FranklinWH Support or their authorised installer to configure each module. Functionality varies between module versions (owner) |
+| **Gate** generator/V2L control and schedule writes on the installed flag, raising a plain "not installed" error (rule 3) | **UI**: no install/uninstall buttons; show installed / not installed / not reported; disabled edits; explain the generator/V2L exclusion; label raw metrics |
+| Read-back verification of every write it allows | Deciding what to show for which hardware, and model-specific notes |
+| CLI: show the state as read, with no product guidance | The aHub and any other accessory with no protocol data |
+
+The library does not infer from the model which accessory is fitted, and it carries no
+device table. The Bridge's table gaps (no V2L row; the AU smart-circuits row says
+`v2l: False` while the app offered V2L on `SyHdVersion` 102; no AU generator V2) were sent
+to the Bridge session on 2026-11-27 as its own items.
+
+**What the rules change in the current code:**
+- `set_generator()` today accepts `genEn`, which is in `GENERATOR_WRITABLE`. That
+  **breaks rule 1**: it must be removed and refused. This is a caller-visible change, so it
+  needs an Upgrade note.
+- The generator write helpers today write whatever `genEn` says. They need the
+  installed-only gate from rule 3.
+- **Not yet writable, so mapping is needed before they can be offered:**
+  - Auto/Manual `mode` is not in `GENERATOR_WRITABLE`. It appeared on B60D00 and was mapped
+    from the app on 2026-11-26, but writing it has not been tested.
+  - `manuSw` (manual start/stop) is writable, but its meaning is not established. There is
+    no generator fitted.
+  - V2L toggles and settings (`v2LModeCtrl`, `v2lChargeEna`, `v2LStartTimeout`, …) are
+    unmapped. They need app-driven mapping (one setting at a time, read after each), then
+    a hardware write test with the owner.
+- The scheduling surface is the same `charge1-3` windows plus the exercise schedule.
+  Whether V2L has its own schedule is not known.
+
+**Evidence base:** one site, B60D00, 2026-11-26 (`docs/FIRMWARE_MAP.md` §6, PR #48). Measurement fields have no established meaning. **Regression risk:** medium. The API addition is additive, but removing `genEn` from the writable keys is caller-visible.
 
 ---
 
